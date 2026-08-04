@@ -1,0 +1,364 @@
+﻿@{
+    ViewData["Title"] = "Descontar Material";
+}
+
+<div class="container-fluid mt-4 px-4">
+    <!-- Grid principal: Dividido en 2 secciones en pantallas medianas/grandes -->
+    <div class="row">
+
+        <!-- ================= COLUMNA IZQUIERDA: ESCANEO E INFORMACIÓN DEL SOLICITANTE ================= -->
+        <div class="col-lg-4 col-md-5 mb-4">
+
+            <!-- Bloque 1: Tarjeta de Escaneo -->
+            <div class="card rounded-pill mb-3 border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <h2 class="h5 fw-bold mb-0">👷 Escaneo de Empleado Solicitante</h2>
+                </div>
+            </div>
+
+            <div class="card rounded-4 border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <label for="empleadoScan" class="form-label fw-bold">Número de empleado</label>
+                    <div class="input-group w-100">
+                        <span class="input-group-text bg-white"><i class="bi bi-barcode text-muted"></i></span>
+                        <input id="empleadoScan" type="text" class="form-control"
+                               placeholder="Escanea o escribe tu número de empleado" autofocus autocomplete="off" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloque 2: Tarjeta de Información (Aparece justo abajo del escáner tras validar) -->
+            <div id="empleadotitle" class="card rounded-pill d-none mb-3 border-0 shadow-sm">
+                <div class="card-body text-center py-2">
+                    <h2 class="h5 fw-bold mb-0">📋 Información del Solicitante</h2>
+                </div>
+            </div>
+
+            <div id="empleadoInfo" class="card rounded-4 d-none border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <img id="empleadoFoto" src="https://flaticon.com" alt="Foto TM"
+                         class="rounded-circle border" style="width:80px;height:80px;object-fit:cover;" />
+                    <div>
+                        <p class="fw-bold mb-1 text-primary" id="empleadoNombre">Nombre del empleado</p>
+                        <p class="mb-0 small text-muted">Número: <span class="fw-bold text-dark" id="empleadoNumero"></span></p>
+                        <p class="mb-0 small text-muted">Puesto: <span class="fw-bold text-dark" id="empleadoPuesto"></span></p>
+                        <p class="mb-0 small text-muted">Departamento: <span class="fw-bold text-dark" id="empleadoDepto"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= COLUMNA DERECHA: MATERIALES ESCANEADOS Y TABLA ================= -->
+        <div class="col-lg-8 col-md-7 mb-4">
+
+            <!-- Esta sección se mantiene oculta hasta que el solicitante sea validado con éxito -->
+            <div id="kanbanSection" class="card d-none rounded-4 border-0 shadow-sm h-100">
+                <div class="card-body">
+
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h2 class="h5 fw-bold mb-0"><i class="bi bi-box-seam text-primary me-2"></i>Materiales Escaneados</h2>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-info-circle me-1"></i> Flujo activo</span>
+                    </div>
+
+                    <p class="text-muted small">Escanea el código QR/Barras del material de forma consecutiva. Cuando termines, escanea el código especial <strong class="text-danger">FIN</strong>.</p>
+
+                    <div class="input-group w-50 mb-4">
+                        <span class="input-group-text bg-white"><i class="bi bi-qr-code-scan"></i></span>
+                        <input id="CodigoScan" type="text" class="form-control"
+                               placeholder="Escanea código del material..." autocomplete="off" />
+                    </div>
+
+                    <!-- Tabla productos -->
+                    <div id="productosSection" class="d-none">
+                        <div class="table-responsive rounded-3">
+                            <table class="table table-hover align-middle border mb-0">
+                                <thead class="table-dark text-uppercase fs-7">
+                                    <tr>
+                                        <th class="ps-3">ID / Código</th>
+                                        <th>Nombre Producto</th>
+                                        <th>Categoría</th>
+                                        <th class="text-center" style="width: 150px;">Cantidad</th>
+                                        <th class="text-end pe-3" style="width: 100px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productosBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Receptor (Se activa al escanear "FIN") -->
+<div class="modal fade" id="modalReceptor" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold fs-6"><i class="bi bi-person-check me-2"></i>Validación de Entrega (Receptor)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-3">Para autorizar la salida de material del almacén, por favor escanea el Número de Empleado del **Receptor/Supervisor** o encargado de la entrega.</p>
+
+                <div class="mb-3">
+                    <label for="empleadoReceptorInput" class="form-label small fw-semibold text-muted">No. de Empleado Autorizador</label>
+                    <input id="empleadoReceptorInput" type="text" class="form-control" placeholder="Escanea No. de Empleado" autocomplete="off" />
+                </div>
+
+                <!-- Info receptor -->
+                <div id="empleadoReceptorInfo" class="card d-none bg-light border-0">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <img src="https://flaticon.com" alt="Foto receptor" class="rounded-circle border" style="width:64px;height:64px;object-fit:cover;" />
+                        <div>
+                            <p class="fw-bold mb-1 text-success" id="receptorNombre">Nombre del receptor</p>
+                            <p class="mb-0 small text-muted">Número: <span class="fw-bold text-dark" id="receptorNumero"></span></p>
+                            <p class="mb-0 small text-muted">Rol: <span class="fw-bold text-dark" id="receptorRol"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btnConfirmarSalida" class="btn btn-sm btn-success d-none"><i class="bi bi-check-circle me-1"></i> Confirmar Descuento</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Instancias de Modales Bootstrap 5
+            const modalReceptor = new bootstrap.Modal(document.getElementById('modalReceptor'));
+
+            // Variables globales de estado para la transacción en curso
+            let solicitanteId = null;
+            let receptorId = null;
+            let carritoMateriales = []; // Guarda objetos: { id, codigo, nombre, categoria, cantidad }
+
+            // Elementos del DOM - Solicitante
+            const empleadoScan = document.getElementById("empleadoScan");
+            const empleadotitle = document.getElementById("empleadotitle");
+            const empleadoInfo = document.getElementById("empleadoInfo");
+            const empleadoNombre = document.getElementById("empleadoNombre");
+            const empleadoNumero = document.getElementById("empleadoNumero");
+            const empleadoPuesto = document.getElementById("empleadoPuesto");
+            const empleadoDepto = document.getElementById("empleadoDepto");
+
+            // Elementos del DOM - Materiales
+            const kanbanSection = document.getElementById("kanbanSection");
+            const CodigoScan = document.getElementById("CodigoScan");
+            const productosSection = document.getElementById("productosSection");
+            const productosBody = document.getElementById("productosBody");
+
+            // Elementos del DOM - Receptor y Confirmación
+            const empleadoReceptorInput = document.getElementById("empleadoReceptorInput");
+            const empleadoReceptorInfo = document.getElementById("empleadoReceptorInfo");
+            const receptorNombre = document.getElementById("receptorNombre");
+            const receptorNumero = document.getElementById("receptorNumero");
+            const receptorRol = document.getElementById("receptorRol");
+            const btnConfirmarSalida = document.getElementById("btnConfirmarSalida");
+
+            // ================= 1. ESCANEO DEL EMPLEADO SOLICITANTE =================
+            empleadoScan.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    const numeroEmpleado = this.value.trim();
+                    if (!numeroEmpleado) return;
+
+                    // Consulta asíncrona para validar al solicitante en el controlador Descontar
+                    fetch(`/Descontar/ObtenerEmpleado?idEmpleado=${encodeURIComponent(numeroEmpleado)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                solicitanteId = data.empleado.id;
+                                empleadoNombre.textContent = data.empleado.nombre;
+                                empleadoNumero.textContent = data.empleado.numero;
+                                empleadoPuesto.textContent = data.empleado.puesto;
+                                empleadoDepto.textContent = data.empleado.departamento;
+
+                                // Mostrar componentes visuales y activar flujo de materiales
+                                empleadotitle.classList.remove("d-none");
+                                empleadoInfo.classList.remove("d-none");
+                                kanbanSection.classList.remove("d-none");
+                                empleadoScan.disabled = true; // Bloquear input para proteger la sesión
+                                CodigoScan.focus(); // Foco automático inmediato al escáner de materiales
+                            } else {
+                                alert(data.message || "Empleado no registrado en el catálogo.");
+                                this.value = "";
+                            }
+                        })
+                        .catch(() => alert("Error de red al intentar validar el empleado."));
+                }
+            });
+
+            // ================= 2. ESCANEO CONSECUTIVO DE MATERIALES =================
+            CodigoScan.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    const codigo = this.value.trim().toUpperCase();
+                    this.value = ""; // Limpieza inmediata para permitir el siguiente escaneo rápido
+                    if (!codigo) return;
+
+                    // Regla de escape o disparo: Al escanear el código "FIN"
+                    if (codigo === "FIN") {
+                        if (carritoMateriales.length === 0) {
+                            alert("El carrito está vacío. Escanea materiales antes de procesar el código FIN.");
+                            return;
+                        }
+                        modalReceptor.show();
+                        // Delay de 400ms para asegurar el foco tras la animación de apertura del modal de Bootstrap
+                        setTimeout(() => empleadoReceptorInput.focus(), 400); 
+                        return;
+                    }
+
+                    // Si el material ya está registrado en el lote actual, incrementamos cantidad sin consultar al servidor
+                    const indexExistente = carritoMateriales.findIndex(m => m.codigo === codigo);
+                    if (indexExistente !== -1) {
+                        carritoMateriales[indexExistente].cantidad++;
+                        renderizarTablaMateriales();
+                        return;
+                    }
+
+                    // Consulta asíncrona para traer los datos del producto/SKU validado
+                    fetch(`/Descontar/ObtenerProducto?codigo=${encodeURIComponent(codigo)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                carritoMateriales.push({
+                                    id: data.producto.id,
+                                    codigo: data.producto.codigo,
+                                    nombre: data.producto.nombre,
+                                    categoria: data.producto.categoria,
+                                    cantidad: 1
+                                });
+                                renderizarTablaMateriales();
+                            } else {
+                                alert(data.message || "Código de barras o QR no reconocido en el inventario.");
+                            }
+                        })
+                        .catch(() => alert("Error de red al intentar validar el material."));
+                }
+            });
+
+            // Función encargada de dibujar las filas del lote en tiempo real
+            function renderizarTablaMateriales() {
+                if (carritoMateriales.length === 0) {
+                    productosSection.classList.add("d-none");
+                    productosBody.innerHTML = "";
+                    return;
+                }
+
+                productosSection.classList.remove("d-none");
+                productosBody.innerHTML = "";
+
+                carritoMateriales.forEach((material, index) => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td class="ps-3 fw-bold text-secondary">#${material.codigo}</td>
+                        <td class="fw-semibold text-dark">${material.nombre}</td>
+                        <td><span class="badge bg-light text-dark border">${material.categoria}</span></td>
+                        <td class="text-center">
+                            <div class="input-group input-group-sm justify-content-center">
+                                <button class="btn btn-outline-secondary btn-cambiar-cant" data-index="${index}" data-delta="-1" type="button">-</button>
+                                <input type="text" class="form-control text-center fw-bold" value="${material.cantidad}" style="max-width: 50px;" readonly />
+                                <button class="btn btn-outline-secondary btn-cambiar-cant" data-index="${index}" data-delta="1" type="button">+</button>
+                            </div>
+                        </td>
+                        <td class="text-end pe-3">
+                            <button class="btn btn-sm btn-outline-danger btn-eliminar-mat" data-index="${index}" type="button">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    productosBody.appendChild(tr);
+                });
+            }
+
+            // Delegación de eventos para capturar los clics en botones sumar, restar y eliminar materiales
+            productosBody.addEventListener("click", function (e) {
+                const btnCant = e.target.closest(".btn-cambiar-cant");
+                const btnDel = e.target.closest(".btn-eliminar-mat");
+
+                if (btnCant) {
+                    const idx = parseInt(btnCant.getAttribute("data-index"));
+                    const delta = parseInt(btnCant.getAttribute("data-delta"));
+                    carritoMateriales[idx].cantidad += delta;
+
+                    // Si la cantidad llega a cero, borramos el registro automáticamente del listado
+                    if (carritoMateriales[idx].cantidad <= 0) {
+                        carritoMateriales.splice(idx, 1);
+                    }
+                    renderizarTablaMateriales();
+                }
+
+                if (btnDel) {
+                    const idx = parseInt(btnDel.getAttribute("data-index"));
+                    carritoMateriales.splice(idx, 1);
+                    renderizarTablaMateriales();
+                }
+            });
+
+            // ================= 3. VALIDACIÓN DEL RECEPTOR / SUPERVISOR =================
+            empleadoReceptorInput.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    const numeroReceptor = this.value.trim();
+                    if (!numeroReceptor) return;
+
+                    // Reutiliza la validación asíncrona de empleados para certificar al autorizador
+                    fetch(`/Descontar/ObtenerEmpleado?idEmpleado=${encodeURIComponent(numeroReceptor)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                receptorId = data.empleado.id;
+                                receptorNombre.textContent = data.empleado.nombre;
+                                receptorNumero.textContent = data.empleado.numero;
+                                receptorRol.textContent = data.empleado.puesto;
+
+                                // Mostrar datos del receptor y activar botón de confirmación final
+                                empleadoReceptorInfo.classList.remove("d-none");
+                                btnConfirmarSalida.classList.remove("d-none");
+                            } else {
+                                alert(data.message || "Código de empleado autorizador no válido.");
+                                this.value = "";
+                            }
+                        })
+                        .catch(() => alert("Error de red al intentar validar el receptor."));
+                }
+            });
+
+            // ================= 4. CONFIRMACIÓN Y DESCUENTO EN BASE DE DATOS =================
+            btnConfirmarSalida.addEventListener("click", function () {
+                // Generamos la estructura limpia para mapear al ViewModel del backend
+                const transaccionSalida = {
+                    SolicitanteID: solicitanteId,
+                    ReceptorID: receptorId,
+                    Materiales: carritoMateriales.map(m => ({ ProductoID: m.id, Cantidad: m.cantidad }))
+                };
+
+                // Envío asíncrono vía POST en formato JSON puro
+                fetch("/Descontar/ProcesarDescuento", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(transaccionSalida)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Descuento de material aplicado con éxito en inventario.");
+                        window.location.reload(); // Recarga limpia para limpiar la estación de escaneo
+                    } else {
+                        alert(data.message || "Error: No se pudo procesar la rebaja de inventario.");
+                    }
+                })
+                .catch(() => alert("Error de comunicación crítica con el servidor."));
+            });
+        });
+    </script>
+}

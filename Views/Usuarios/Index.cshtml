@@ -1,0 +1,468 @@
+﻿@model IEnumerable<TGRMXInventario.Models.Usuarios>
+
+@{
+    ViewData["Title"] = "Gestión de Usuarios";
+}   
+
+<div class="container-fluid py-4">
+<div class="row mb-4 align-items-center">
+    <div class="col-12 col-md-6 mb-3 mb-md-0">
+        <h4 class="m-0 fw-bold text-dark"><i class="bi bi-people me-2"></i>Usuarios</h4>
+        <p class="text-muted small m-0">Administra las cuentas de usuario, números de empleado y credenciales de acceso.</p>
+    </div>
+    <div class="col-12 col-md-6 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+        <button id="btnExportarExcel" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-excel"></i> Exportar
+        </button>
+        <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createUsuarioModal">
+            <i class="bi bi-person-plus"></i> Nuevo Usuario
+        </button>
+    </div>
+</div>
+
+<!-- Barra de Búsqueda -->
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body p-3">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" id="tablaBuscador" class="form-control border-start-0 ps-0" placeholder="Buscar por ID empleado, jerarquía, correo o rol..." />
+        </div>
+    </div>
+</div>
+
+<!-- Tarjeta de Contenedor de Tabla -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="miTablaUsuarios" class="table table-hover align-middle mb-0">
+                <thead class="table-light text-uppercase fs-7 text-muted">
+                    <tr>
+                        <th class="ps-4" style="width: 80px;">ID</th>
+                        <th>No. Empleado</th>
+                        <th>Jerarquía</th>
+                        <th>Correo Electrónico</th>
+                        <th>Rol</th>
+                        <th class="pe-4 text-end" style="width: 180px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaUsuarios">
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-bold text-secondary">#@item.Id</td>
+                                <td>
+                                    <span class="fw-semibold text-dark">@(item.EmpleadoID?.ToString() ?? "Sin asignar")</span>
+                                </td>
+                                <td>
+                                    <span class="text-dark small">@(item.Jerarquia ?? "Sin jerarquía")</span>
+                                </td>
+                                <td>
+                                    <span class="text-muted small">@(item.Correo ?? "Sin correo")</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        @(item.Rol ?? "Sin Rol")
+                                    </span>
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-warning btn-editar"
+                                                data-id="@item.Id" data-empleado="@item.EmpleadoID"
+                                                data-jerarquia="@item.Jerarquia" data-correo="@item.Correo"
+                                                data-password="@item.Password" data-rol="@item.Rol" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar"
+                                                data-id="@item.Id" data-correo="@item.Correo" title="Eliminar">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-people display-4 d-block mb-3 text-secondary"></i>
+                                No hay usuarios registrados.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ================= MODALES DE ACCIÓN ================= -->
+<!-- Modal: Crear -->
+<div class="modal fade" id="createUsuarioModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold fs-6"><i class="bi bi-person-plus me-2"></i>Agregar Usuario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Usuarios" asp-action="Create" method="post">
+                <div class="modal-body p-4">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <!-- Campo oculto para mandar el Id de rh4 al controlador -->
+                            <input type="hidden" name="EmpleadoID" id="hdnIdEmpleadoCreate" required />
+
+                            <label class="form-label text-primary fw-bold small">Buscar Empleado (Escribe Número o Nombre)</label>
+                            <input type="text" class="form-control text-black bg-light" id="txtBuscadorEmpleadoCreate"
+                                   placeholder="Comienza a escribir el número o nombre del empleado..." autocomplete="off"
+                                   onkeydown="if(event.key === 'Enter') { event.preventDefault(); }">
+
+                            <!-- Contenedor flotante para las coincidencias en formato UL -->
+                            <ul id="listaCoincidenciasCreate" class="list-group position-absolute w-100 mt-1 shadow-lg d-none" style="z-index: 1050; max-height: 250px; overflow-y: auto;">
+                                <!-- Las coincidencias se inyectarán aquí con JavaScript -->
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Jerarquía</label>
+                        <input type="text" name="Jerarquia" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Correo Electrónico</label>
+                        <input type="email" name="Correo" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Contraseña</label>
+                        <input type="password" name="Password" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Rol</label>
+                        <select name="Rol" class="form-select" required>
+                            <option value="" disabled selected>-- Selecciona un Rol --</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Tecnico">Tecnico</option>
+                            <option value="Requisitor">Requisitor</option>
+                            <option value="Consumidor">Consumidor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Guardar Usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar -->
+<div class="modal fade" id="editUsuarioModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold fs-6"><i class="bi bi-pencil me-2"></i>Editar Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Usuarios" asp-action="Edit" method="post">
+                <input type="hidden" id="edit_Id" name="Id" />
+                <div class="modal-body p-4">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <input type="hidden" name="EmpleadoID" id="hdnIdEmpleadoEdit" required />
+
+                            <label class="form-label text-primary fw-bold small">Buscar Empleado (Escribe Número o Nombre)</label>
+                            <input type="text" class="form-control text-black bg-light" id="txtBuscadorEmpleadoEdit"
+                                   placeholder="Comienza a escribir el número o nombre del empleado..." autocomplete="off"
+                                   onkeydown="if(event.key === 'Enter') { event.preventDefault(); }">
+
+                            <ul id="listaCoincidenciasEdit" class="list-group position-absolute w-100 mt-1 shadow-lg d-none" style="z-index: 1050; max-height: 250px; overflow-y: auto;">
+                                <!-- Se llena con JS -->
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Jerarquía</label>
+                        <input type="text" id="edit_Jerarquia" name="Jerarquia" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Correo Electrónico</label>
+                        <input type="email" id="edit_Correo" name="Correo" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Contraseña</label>
+                        <input type="password" id="edit_Password" name="Password" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Rol</label>
+                        <select id="edit_Rol" name="Rol" class="form-select" required>
+                            <option value="Admin">Admin</option>
+                            <option value="Tecnico">Tecnico</option>
+                            <option value="Requisitor">Requisitor</option>
+                            <option value="Consumidor">Consumidor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-warning">Actualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal: Eliminar Usuario -->
+<div class="modal fade" id="deleteUsuarioModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold fs-6"><i class="bi bi-exclamation-triangle me-2"></i>¿Eliminar Usuario?</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!-- Envía la petición POST al método Delete del UsuariosController -->
+            <form asp-controller="Usuarios" asp-action="Delete" method="post">
+                <!-- Token de seguridad y llave primaria oculta -->
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="delete_Id" name="Id" />
+
+                <div class="modal-body p-3 text-center">
+                    <p class="m-0 small text-muted">¿Estás seguro de eliminar el acceso de?</p>
+                    <!-- El JavaScript escribirá aquí el correo capturado dinámicamente -->
+                    <p class="fw-bold text-dark mt-1 mb-0" id="delete_CorreoUsuario"></p>
+                </div>
+                <div class="modal-footer bg-light border-0 justify-content-center">
+                    <button type="button" class="btn btn-xs btn-outline-secondary" data-bs-dismiss="modal">No, cancelar</button>
+                    <button type="submit" class="btn btn-xs btn-danger">Sí, eliminar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+   <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            // ================= SCRIPT DEL BUSCADOR FLOTANTE ASÍNCRONO (UL / LI) =================
+            function inicializarBuscadorFlotante(idInputTexto, idInputOculto, idListaUL) {
+                const inputTexto = document.getElementById(idInputTexto);
+                const inputOculto = document.getElementById(idInputOculto);
+                const listaUL = document.getElementById(idListaUL);
+                let debounceTimer = null;
+
+                inputTexto.addEventListener("input", function () {
+                    const query = this.value.trim();
+
+                    // Si se limpia el input visual, borramos el ID oculto y ocultamos la lista
+                    if (query.length === 0) {
+                        inputOculto.value = "";
+                        listaUL.innerHTML = "";
+                        listaUL.classList.add("d-none");
+                        return;
+                    }
+
+                    // Pequeña espera de 250ms para no saturar al servidor mientras escriben
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        fetch(`/Usuarios/BuscarEmpleados?query=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                listaUL.innerHTML = "";
+
+                                if (data.length === 0) {
+                                    listaUL.innerHTML = `<li class="list-group-item list-group-item-light text-muted small"><i class="bi bi-exclamation-circle me-1"></i> Sin coincidencias para "${query}"</li>`;
+                                    listaUL.classList.remove("d-none");
+                                    return;
+                                }
+
+                                // Inyectar las coincidencias dinámicamente como elementos LI
+                                data.forEach(emp => {
+                                    const li = document.createElement("li");
+                                    li.className = "list-group-item list-group-item-action py-2 px-3 text-start";
+                                    li.style.cursor = "pointer";
+                                    li.innerHTML = `
+                                        <div class="fw-bold text-dark small"><i class="bi bi-person-fill text-secondary me-1"></i> ${emp.nombre}</div>
+                                        <div class="text-muted small" style="font-size: 0.75rem;">No. Empleado: <span class="badge bg-light text-dark border">${emp.empleado || 'N/A'}</span></div>
+                                    `;
+
+                                    // Evento al hacer clic en una opción de la lista
+                                    li.addEventListener("click", function () {
+                                        inputTexto.value = `${emp.empleado} - ${emp.nombre}`;
+                                        inputOculto.value = emp.id; // Guarda el Id único de rh4
+                                        listaUL.innerHTML = "";
+                                        listaUL.classList.add("d-none");
+                                    });
+
+                                    listaUL.appendChild(li);
+                                });
+
+                                listaUL.classList.remove("d-none");
+                            });
+                    }, 250);
+                });
+
+                // Ocultar la lista flotante si se hace clic fuera del control
+                document.addEventListener("click", function (e) {
+                    if (e.target !== inputTexto && e.target !== listaUL && !listaUL.contains(e.target)) {
+                        listaUL.classList.add("d-none");
+                    }
+                });
+            }
+
+            // Inicializar el comportamiento en los inputs correspondientes de tus modales
+            inicializarBuscadorFlotante("txtBuscadorEmpleadoCreate", "hdnIdEmpleadoCreate", "listaCoincidenciasCreate");
+            inicializarBuscadorFlotante("txtBuscadorEmpleadoEdit", "hdnIdEmpleadoEdit", "listaCoincidenciasEdit");
+
+
+            // ================= LÓGICA DE PAGINACIÓN NATIVA =================
+            const filasPorPagina = 10;
+            let paginaActual = 1;
+            let filasFiltradas = [];
+
+            const tablaBody = document.getElementById("tablaUsuarios");
+            const buscador = document.getElementById("tablaBuscador");
+            const tablaContenedor = document.getElementById("miTablaUsuarios");
+            
+            const todasLasFilas = Array.from(tablaBody.querySelectorAll("tr")).filter(fila => fila.cells.length > 1);
+
+            const paginacionContenedor = document.createElement("div");
+            paginacionContenedor.className = "d-flex justify-content-between align-items-center mt-3 px-3";
+            tablaContenedor.parentNode.appendChild(paginacionContenedor);
+
+            function actualizarTabla() {
+                const totalFilas = filasFiltradas.length;
+                
+                if (totalFilas === 0) {
+                    tablaBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted"><i class="bi bi-people display-4 d-block mb-3 text-secondary"></i>No hay usuarios que coincidan con la búsqueda.</td></tr>`;
+                    paginacionContenedor.innerHTML = "";
+                    return;
+                }
+
+                const totalPaginas = Math.ceil(totalFilas / filasPorPagina);
+                if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+                if (paginaActual < 1) paginaActual = 1;
+
+                const inicio = (paginaActual - 1) * filasPorPagina;
+                const fin = inicio + filasPorPagina;
+
+                tablaBody.innerHTML = "";
+                filasFiltradas.slice(inicio, fin).forEach(fila => {
+                    tablaBody.appendChild(fila);
+                });
+
+                paginacionContenedor.innerHTML = `
+                    <div class="text-muted small">Mostrando ${inicio + 1} al ${Math.min(fin, totalFilas)} de ${totalFilas}</div>
+                    <nav>
+                        <ul class="pagination pagination-sm m-0">
+                            <li class="page-item ${paginaActual === 1 ? 'disabled' : ''}"><button class="page-link" data-page="${paginaActual - 1}">Anterior</button></li>
+                            ${Array.from({length: totalPaginas}, (_, i) => `
+                                <li class="page-item ${paginaActual === i + 1 ? 'active' : ''}">
+                                    <button class="page-link" data-page="${i + 1}">${i + 1}</button>
+                                </li>
+                            `).join('')}
+                            <li class="page-item ${paginaActual === totalPaginas ? 'disabled' : ''}"><button class="page-link" data-page="${paginaActual + 1}">Siguiente</button></li>
+                        </ul>
+                    </nav>`;
+            }
+
+            paginacionContenedor.addEventListener("click", function (e) {
+                if (e.target.classList.contains("page-link") || e.target.tagName === "BUTTON") {
+                    const nuevaPagina = parseInt(e.target.getAttribute("data-page"));
+                    if (!isNaN(nuevaPagina) && nuevaPagina !== paginaActual) {
+                        paginaActual = nuevaPagina;
+                        actualizarTabla();
+                    }
+                }
+            });
+
+            function filtrarFilas() {
+                const query = buscador ? buscador.value.toLowerCase().trim() : "";
+                filasFiltradas = todasLasFilas.filter(fila => {
+                    if (!query) return true;
+                    return fila.textContent.toLowerCase().includes(query);
+                });
+                paginaActual = 1;
+                actualizarTabla();
+            }
+
+            if (buscador) buscador.addEventListener("input", filtrarFilas);
+            filtrarFilas();
+
+
+            // ================= BOTÓN EXPORTAR EXCEL =================
+            const btnExportar = document.getElementById("btnExportarExcel");
+            if (btnExportar) {
+                btnExportar.addEventListener("click", function () {
+                    if (todasLasFilas.length === 0) return;
+
+                    let csv = [];
+                    const ths = tablaContenedor.querySelectorAll("thead th");
+                    const cabeceras = Array.from(ths).slice(0, -1).map(th => `"${th.textContent.trim().replace(/"/g, '""')}"`);
+                    csv.push(cabeceras.join(","));
+
+                    todasLasFilas.forEach(fila => {
+                        const celdas = fila.querySelectorAll("td");
+                        if (celdas.length < 2) return;
+
+                        let filaDatos = [
+                            `"${celdas[0].textContent.trim().replace("#", "")}"`,
+                            `"${celdas[1].textContent.trim()}"`,
+                            `"${celdas[2].textContent.trim()}"`,
+                            `"${celdas[3].textContent.trim()}"`,
+                            `"${celdas[4].textContent.trim()}"`
+                        ];
+                        csv.push(filaDatos.join(","));
+                    });
+
+                    const csvContenido = "\uFEFF" + csv.join("\n");
+                    const blob = new Blob([csvContenido], { type: "text/csv;charset=utf-8;" });
+                    const link = document.createElement("a");
+                    link.setAttribute("href", URL.createObjectURL(blob));
+                    link.setAttribute("download", `Usuarios_TGRMX_${new Date().toISOString().slice(0, 10)}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            }
+                        // ================= GESTIÓN DE MODALES =================
+            const modalEdicion = new bootstrap.Modal(document.getElementById('editUsuarioModal'));
+            const modalEliminacion = new bootstrap.Modal(document.getElementById('deleteUsuarioModal'));
+
+            tablaBody.addEventListener('click', function (e) {
+                const btnEditar = e.target.closest('.btn-editar');
+                const btnEliminar = e.target.closest('.btn-eliminar');
+
+                if (btnEditar) {
+                    // ... Tus asignaciones anteriores de ID, Correo, etc ...
+                    document.getElementById('edit_Id').value = btnEditar.getAttribute('data-id');
+                    document.getElementById('edit_Jerarquia').value = btnEditar.getAttribute('data-jerarquia');
+                    document.getElementById('edit_Correo').value = btnEditar.getAttribute('data-correo');
+                    document.getElementById('edit_Password').value = btnEditar.getAttribute('data-password') || "";
+
+                    // ASIGNACIÓN DEL SELECT DE ROL MODIFICADO
+                    document.getElementById('edit_Rol').value = btnEditar.getAttribute('data-rol');
+
+                    // ... Sincronización del buscador de empleados ...
+                    const empleadoVal = btnEditar.getAttribute('data-empleado');
+                    document.getElementById('hdnIdEmpleadoEdit').value = empleadoVal;
+                    document.getElementById('txtBuscadorEmpleadoEdit').value = empleadoVal || "";
+
+                    modalEdicion.show();
+                }
+
+
+                if (btnEliminar) {
+                    document.getElementById('delete_Id').value = btnEliminar.getAttribute('data-id');
+                    document.getElementById('delete_CorreoUsuario').textContent = btnEliminar.getAttribute('data-correo');
+                    modalEliminacion.show();
+                }
+            });
+        });
+
+   </script>
+}
+
+

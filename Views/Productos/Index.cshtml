@@ -1,0 +1,594 @@
+﻿@model IEnumerable<TGRMXInventario.Models.Productos>
+
+@{
+    ViewData["Title"] = "Gestión de Productos";
+}
+
+<div class="container-fluid py-4">
+    <!-- Encabezado y Acción Principal -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">📦 Gestión de Productos</h1>
+            <p class="text-muted small mb-0">Administra el inventario, costos, proveedores y alertas de stock.</p>
+        </div>
+        <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#createProductModal">
+            <i class="bi bi-plus-circle me-2"></i>Nuevo Producto
+        </button>
+    </div>
+
+    <!-- Barra de Búsqueda -->
+    <div class="row mb-3">
+        <div class="col-md-6 col-lg-4">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" id="tablaBuscador" class="form-control border-start-0 ps-0" placeholder="Buscar por producto, categoría, proveedor..." autocomplete="off">
+                <button id="btnExportarExcel" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjeta de Contenedor de Tabla -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table id="miTablaProductos" class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-uppercase fs-7 text-muted">
+                        <tr>
+                            <th class="ps-4" style="width: 80px;">ID</th>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Proveedor</th>
+                            <th>Costo</th>
+                            <th>Stock</th>
+                            <th>Límites (Min/Max)</th>
+                            <th class="pe-4 text-end" style="width: 180px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaProductos">
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var item in Model)
+                            {
+                                // Alerta visual si la cantidad actual es menor o igual al mínimo
+                                bool alertaStock = item.Cantidad.HasValue && item.Min.HasValue && item.Cantidad <= item.Min;
+
+                                <tr>
+                                    <td class="ps-4 fw-bold text-secondary">#@item.Id</td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">@(item.NombreProducto ?? "Sin nombre")</div>
+                                        <small class="text-muted text-uppercase fs-7">@item.Unidad</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            @(item.Categoria != null ? item.Categoria.NombreCategoria : "Sin categoría")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">
+                                            @(item.Proveedor != null ? item.Proveedor.NombreProveedor : "Sin asignar")
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold text-success">
+                                        @(item.Costo.HasValue? item.Costo.Value.ToString("C0") : "$0")
+                                        <span class="text-muted small fw-normal">@(item.Moneda ?? "MXN")</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold @(alertaStock ? "text-danger" : "text-dark")">
+                                            @(item.Cantidad ?? 0)
+                                        </span>
+                                        @if (alertaStock)
+                                        {
+                                            <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Stock bajo el mínimo"></i>
+                                        }
+                                    </td>
+                                    <td class="text-muted small">
+                                        Min: @(item.Min ?? 0) / Max: @(item.Max ?? 0)
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-warning btn-editar"
+                                                    data-id="@item.Id" data-nombre="@item.NombreProducto"
+                                                    data-categoria="@item.CategoriaID" data-proveedor="@item.ProveedorID"
+                                                    data-costo="@item.Costo" data-unidad="@item.Unidad"
+                                                    data-moneda="@item.Moneda" data-cantidad="@item.Cantidad"
+                                                    data-min="@item.Min" data-max="@item.Max" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar"
+                                                    data-id="@item.Id" data-nombre="@item.NombreProducto" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="bi bi-box-seam display-4 d-block mb-3 text-secondary"></i>
+                                    No hay productos registrados en el inventario.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================
+     MODAL: REGISTRAR NUEVO PRODUCTO
+     ========================================================= -->
+<div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark" id="createProductModalLabel">
+                    <i class="bi bi-box-seam me-2 text-primary"></i>Registrar Nuevo Producto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- El formulario se conecta directamente a la acción 'Create' del Controlador -->
+            <form asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body px-4 py-3">
+
+                    <!-- Fila 1: Nombre del Producto -->
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
+                            <input type="text" name="NombreProducto" id="NombreProducto" class="form-control" placeholder="Ej. Cable UTP Categoría 6" required />
+                        </div>
+                    </div>
+
+                    <!-- Fila 2: Categoría y Proveedor -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="CategoriaID" class="form-label fw-semibold text-secondary small">Categoría</label>
+                            <select name="CategoriaID" id="CategoriaID" class="form-select">
+                                <option value="">-- Seleccionar Categoría --</option>
+                                @if (ViewBag.Categorias != null)
+                                {
+                                    foreach (var cat in (IEnumerable<TGRMXInventario.Models.Categorias>)ViewBag.Categorias)
+                                    {
+                                        <option value="@cat.Id">@cat.NombreCategoria</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="ProveedorID" class="form-label fw-semibold text-secondary small">Proveedor</label>
+                            <select name="ProveedorID" id="ProveedorID" class="form-select">
+                                <option value="">-- Seleccionar Proveedor --</option>
+                                @if (ViewBag.Proveedores != null)
+                                {
+                                    foreach (var prov in (IEnumerable<TGRMXInventario.Models.Proveedores>)ViewBag.Proveedores)
+                                    {
+                                        <option value="@prov.Id">@prov.NombreProveedor</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fila 3: Costo, Moneda y Unidad de Medida -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="Costo" class="form-label fw-semibold text-secondary small">Costo</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="Costo" id="Costo" class="form-control" placeholder="0" min="0" />
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="Moneda" class="form-label fw-semibold text-secondary small">Moneda</label>
+                            <select name="Moneda" id="Moneda" class="form-select">
+                                <option value="MXN" selected>Peso Mexicano (MXN)</option>
+                                <option value="USD">Dólar (USD)</option>
+                                <option value="EUR">Euro (EUR)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="Unidad" class="form-label fw-semibold text-secondary small">Unidad de Medida</label>
+                            <select name="Unidad" id="Unidad" class="form-select">
+                                <option value="Pza" selected>Pieza (Pza)</option>
+                                <option value="Kg">Kilogramo (Kg)</option>
+                                <option value="Lts">Litro (Lts)</option>
+                                <option value="Caja">Caja</option>
+                                <option value="Paq">Paquete (Paq)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fila 4: Control de Inventario y Stock -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="Cantidad" class="form-label fw-semibold text-secondary small">Cantidad Inicial (Stock)</label>
+                            <input type="number" name="Cantidad" id="Cantidad" class="form-control" min="0" value="0" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="Min" class="form-label fw-semibold text-secondary small">Stock Mínimo</label>
+                            <input type="number" name="Min" id="Min" class="form-control" min="0" value="0" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="Max" class="form-label fw-semibold text-secondary small">Stock Máximo</label>
+                            <input type="number" name="Max" id="Max" class="form-control" min="0" value="0" />
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Acciones del Formulario -->
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL: EDITAR PRODUCTO EXISTENTE
+     ========================================================= -->
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark" id="editProductModalLabel">
+                    <i class="bi bi-pencil-square me-2 text-warning"></i>Editar Producto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- El formulario se conecta directamente a la acción 'Edit' del Controlador -->
+            <form asp-action="Edit" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body px-4 py-3">
+
+                    <!-- ID Oculto indispensable para que Entity Framework localice el registro original -->
+                    <input type="hidden" name="Id" id="edit_Id" />
+
+                    <!-- Fila 1: Nombre del Producto -->
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="edit_NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
+                            <input type="text" name="NombreProducto" id="edit_NombreProducto" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <!-- Fila 2: Categoría y Proveedor -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_CategoriaID" class="form-label fw-semibold text-secondary small">Categoría</label>
+                            <select name="CategoriaID" id="edit_CategoriaID" class="form-select">
+                                <option value="">-- Seleccionar Categoría --</option>
+                                @if (ViewBag.Categorias != null)
+                                {
+                                    foreach (var cat in (IEnumerable<TGRMXInventario.Models.Categorias>)ViewBag.Categorias)
+                                    {
+                                        <option value="@cat.Id">@cat.NombreCategoria</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_ProveedorID" class="form-label fw-semibold text-secondary small">Proveedor</label>
+                            <select name="ProveedorID" id="edit_ProveedorID" class="form-select">
+                                <option value="">-- Seleccionar Proveedor --</option>
+                                @if (ViewBag.Proveedores != null)
+                                {
+                                    foreach (var prov in (IEnumerable<TGRMXInventario.Models.Proveedores>)ViewBag.Proveedores)
+                                    {
+                                        <option value="@prov.Id">@prov.NombreProveedor</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fila 3: Costo, Moneda y Unidad de Medida -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_Costo" class="form-label fw-semibold text-secondary small">Costo</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="Costo" id="edit_Costo" class="form-control" min="0" />
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_Moneda" class="form-label fw-semibold text-secondary small">Moneda</label>
+                            <select name="Moneda" id="edit_Moneda" class="form-select">
+                                <option value="MXN">Peso Mexicano (MXN)</option>
+                                <option value="USD">Dólar (USD)</option>
+                                <option value="EUR">Euro (EUR)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_Unidad" class="form-label fw-semibold text-secondary small">Unidad de Medida</label>
+                            <select name="Unidad" id="edit_Unidad" class="form-select">
+                                <option value="Pza">Pieza (Pza)</option>
+                                <option value="Kg">Kilogramo (Kg)</option>
+                                <option value="Lts">Litro (Lts)</option>
+                                <option value="Caja">Caja</option>
+                                <option value="Paq">Paquete (Paq)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fila 4: Control de Inventario y Stock -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_Cantidad" class="form-label fw-semibold text-secondary small">Cantidad (Stock)</label>
+                            <input type="number" name="Cantidad" id="edit_Cantidad" class="form-control" min="0" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_Min" class="form-label fw-semibold text-secondary small">Stock Mínimo</label>
+                            <input type="number" name="Min" id="edit_Min" class="form-control" min="0" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_Max" class="form-label fw-semibold text-secondary small">Stock Máximo</label>
+                            <input type="number" name="Max" id="edit_Max" class="form-control" min="0" />
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Acciones del Formulario -->
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning btn-sm text-dark px-4 fw-semibold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL: Eliminar Producto -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title fw-bold" id="deleteProductModalLabel">⚠️ Confirmar</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!-- El formulario apunta a la acción Delete del controlador -->
+            <form asp-action="Delete" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body text-center py-4 px-3">
+                    <!-- ID oculto que se envía al servidor -->
+                    <input type="hidden" name="id" id="delete_Id" />
+
+                    <p class="mb-1 text-muted small text-uppercase fw-bold">¿Estás seguro de eliminar?</p>
+                    <h6 class="fw-bold text-dark px-2" id="delete_NombreProducto">--</h6>
+                    <p class="text-danger small mb-0"><i class="bi bi-exclamation-triangle me-1"></i> Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer bg-light border-0 d-flex justify-content-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-4 fw-semibold">Sí, Eliminar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Variables de Paginación
+            const filasPorPagina = 10;
+            let paginaActual = 1;
+            let filasFiltradas = [];
+
+            // Elementos del DOM
+            const tablaBody = document.getElementById("tablaProductos");
+            const buscador = document.getElementById("tablaBuscador");
+            const tablaContenedor = document.getElementById("miTablaProductos") || tablaBody.closest("table");
+
+            // Obtener todas las filas de datos reales (ignorando la fila de 'no hay registros')
+            const todasLasFilas = Array.from(tablaBody.querySelectorAll("tr")).filter(fila => {
+                return fila.cells.length > 1;
+            });
+
+            // Crear contenedor visual para la paginación abajo de la tabla
+            const paginacionContenedor = document.createElement("div");
+            paginacionContenedor.className = "d-flex justify-content-between align-items-center mt-3 px-3";
+            tablaContenedor.parentNode.appendChild(paginacionContenedor);
+
+            function actualizarTabla() {
+                const totalFilas = filasFiltradas.length;
+
+                // Si no hay elementos tras el filtro, mostrar mensaje vacío
+                if (totalFilas === 0) {
+                    tablaBody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-muted"><i class="bi bi-box-seam display-4 d-block mb-3 text-secondary"></i>No hay productos que coincidan con la búsqueda.</td></tr>`;
+                    paginacionContenedor.innerHTML = "";
+                    return;
+                }
+
+                // Calcular índices de paginación
+                const totalPaginas = Math.ceil(totalFilas / filasPorPagina);
+                if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+                if (paginaActual < 1) paginaActual = 1;
+
+                const inicio = (paginaActual - 1) * filasPorPagina;
+                const fin = inicio + filasPorPagina;
+
+                // Limpiar el tbody y reinsertar solo las filas de la página actual
+                tablaBody.innerHTML = "";
+                filasFiltradas.slice(inicio, fin).forEach(fila => {
+                    tablaBody.appendChild(fila);
+                });
+
+                // Renderizar la información y los botones de paginación estilo Bootstrap 5
+                paginacionContenedor.innerHTML = `
+                    <div class="text-muted small">
+                        Mostrando registros del ${inicio + 1} al ${Math.min(fin, totalFilas)} de un total de ${totalFilas}
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm m-0">
+                            <li class="page-item ${paginaActual === 1 ? 'disabled' : ''}">
+                                <button class="page-link" data-page="${paginaActual - 1}">Anterior</button>
+                            </li>
+                            ${generarBotonesPagina(totalPaginas)}
+                            <li class="page-item ${paginaActual === totalPaginas ? 'disabled' : ''}">
+                                <button class="page-link" data-page="${paginaActual + 1}">Siguiente</button>
+                            </li>
+                        </ul>
+                    </nav>
+                `;
+            }
+
+            function generarBotonesPagina(total) {
+                let html = "";
+                for (let i = 1; i <= total; i++) {
+                    html += `<li class="page-item ${paginaActual === i ? 'active' : ''}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+                }
+                return html;
+            }
+
+            // Escuchar clics en la barra de paginación
+            paginacionContenedor.addEventListener("click", function (e) {
+                if (e.target.classList.contains("page-link") || e.target.tagName === "BUTTON") {
+                    const nuevaPagina = parseInt(e.target.getAttribute("data-page"));
+                    if (!isNaN(nuevaPagina) && nuevaPagina !== paginaActual) {
+                        paginaActual = nuevaPagina;
+                        actualizarTabla();
+                    }
+                }
+            });
+
+            // Lógica unificada para filtrar con tu buscador personalizado (#tablaBuscador)
+            function filtrarFilas() {
+                const query = buscador ? buscador.value.toLowerCase().trim() : "";
+
+                filasFiltradas = todasLasFilas.filter(fila => {
+                    if (!query) return true;
+                    const nombre = fila.cells[1]?.textContent.toLowerCase() || "";
+                    const categoria = fila.cells[2]?.textContent.toLowerCase() || "";
+                    const proveedor = fila.cells[3]?.textContent.toLowerCase() || "";
+                    return nombre.includes(query) || categoria.includes(query) || proveedor.includes(query);
+                });
+
+                paginaActual = 1; // Reiniciar a la primera página al buscar
+                actualizarTabla();
+            }
+
+            if (buscador) {
+                buscador.addEventListener("input", filtrarFilas);
+            }
+
+            // Inicializar por primera vez
+            filtrarFilas();
+
+            // --- Control de Modales (Compatible 100% con filas clonadas/paginadas) ---
+            const modalEdicion = new bootstrap.Modal(document.getElementById('editProductModal'));
+            const modalEliminacion = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+
+            tablaBody.addEventListener('click', function (e) {
+                const btnEditar = e.target.closest('.btn-editar');
+                const btnEliminar = e.target.closest('.btn-eliminar');
+
+                if (btnEditar) {
+                    document.getElementById('edit_Id').value = btnEditar.getAttribute('data-id');
+                    document.getElementById('edit_NombreProducto').value = btnEditar.getAttribute('data-nombre');
+                    document.getElementById('edit_CategoriaID').value = btnEditar.getAttribute('data-categoria');
+                    document.getElementById('edit_ProveedorID').value = btnEditar.getAttribute('data-proveedor');
+                    document.getElementById('edit_Costo').value = btnEditar.getAttribute('data-costo');
+                    document.getElementById('edit_Unidad').value = btnEditar.getAttribute('data-unidad');
+                    document.getElementById('edit_Moneda').value = btnEditar.getAttribute('data-moneda');
+                    document.getElementById('edit_Cantidad').value = btnEditar.getAttribute('data-cantidad');
+                    document.getElementById('edit_Min').value = btnEditar.getAttribute('data-min');
+                    document.getElementById('edit_Max').value = btnEditar.getAttribute('data-max');
+                    modalEdicion.show();
+                }
+
+                if (btnEliminar) {
+                    document.getElementById('delete_Id').value = btnEliminar.getAttribute('data-id');
+                    document.getElementById('delete_NombreProducto').textContent = btnEliminar.getAttribute('data-nombre');
+                    modalEliminacion.show();
+                }
+            });
+
+            console.log("Paginador Nativo inicializado correctamente.");
+
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const btnExportar = document.getElementById("btnExportarExcel");
+
+            if (btnExportar) {
+                btnExportar.addEventListener("click", function () {
+                    // Buscamos el cuerpo de la tabla directamente en el momento del clic
+                    const tablaBody = document.getElementById("tablaProductos");
+                    if (!tablaBody) {
+                        alert("Error: No se encontró la tabla de productos.");
+                        return;
+                    }
+
+                    // Capturamos TODAS las filas reales de la tabla (incluso las ocultas por la paginación)
+                    const filasADescargar = Array.from(tablaBody.querySelectorAll("tr")).filter(fila => {
+                        return fila.cells.length > 1; // Filtra filas vacías o de mensajes
+                    });
+
+                    if (filasADescargar.length === 0) {
+                        alert("No hay registros disponibles en la tabla para exportar.");
+                        return;
+                    }
+
+                    let csv = [];
+
+                    // 1. Obtener encabezados (Omitiendo la columna de "Acciones")
+                    const ths = document.querySelectorAll("thead th");
+                    const cabeceras = Array.from(ths).slice(0, -1).map(th => `"${th.textContent.trim().replace(/"/g, '""')}"`);
+                    csv.push(cabeceras.join(","));
+
+                    // 2. Mapear celdas de forma limpia
+                    filasADescargar.forEach(fila => {
+                        const celdas = fila.querySelectorAll("td");
+                        if (celdas.length < 2) return;
+
+                        let filaDatos = [
+                            `"${celdas[0].textContent.trim().replace("#", "")}"`,                                    // ID
+                            `"${celdas[1].querySelector(".fw-semibold")?.textContent.trim() || "Sin Nombre"}"`,       // Producto
+                            `"${celdas[2].textContent.trim()}"`,                                                    // Categoría
+                            `"${celdas[3].textContent.trim()}"`,                                                    // Proveedor
+                            `"${celdas[4].textContent.replace(/[^0-9.-]+/g, "").trim()}"`,                          // Costo
+                            `"${celdas[5].textContent.trim()}"`,                                                    // Stock
+                            `"${celdas[6].textContent.trim().replace(/\s+/g, ' ')}"`                                // Límites
+                        ];
+
+                        csv.push(filaDatos.join(","));
+                    });
+
+                    // 3. Crear descarga remota compatible con acentos de Excel
+                    const csvContenido = "\uFEFF" + csv.join("\n");
+                    const blob = new Blob([csvContenido], { type: "text/csv;charset=utf-8;" });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    const fechaHoy = new Date().toISOString().slice(0, 10);
+
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `Inventario_TGRMX_${fechaHoy}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            }
+        });
+    </script>
+
+
+}
