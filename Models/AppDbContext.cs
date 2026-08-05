@@ -16,7 +16,7 @@ namespace TGRMXInventario.Models
         public virtual DbSet<Productos> Productos { get; set; }
         public virtual DbSet<Categorias> Categorias { get; set; }
         public virtual DbSet<Proveedores> Proveedores { get; set; }
-
+        public virtual DbSet<Movimientos> Movimientos { get; set; }
         public virtual DbSet<Usuarios> Usuarios { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -71,8 +71,7 @@ namespace TGRMXInventario.Controllers
         }
 
 
-        // 2. API para buscar el material por su código/SKU al ser escaneado
-        // GET: /Descontar/ObtenerProducto?codigo=ABC-123
+        // GET: /Descontar/ObtenerProducto?codigo=15
         [HttpGet]
         public async Task<IActionResult> ObtenerProducto(string codigo)
         {
@@ -81,15 +80,20 @@ namespace TGRMXInventario.Controllers
                 return Json(new { success = false, message = "Código de material vacío." });
             }
 
-            // Buscamos el producto por su Nombre o puedes adaptar el campo si tienes una columna 'Codigo'
-            // Nota: Aquí asumo que buscas por NombreProducto o un identificador único en AppDbContext
+            // El escáner arrojará el ID numérico del producto (ej. "15"). Lo validamos y convertimos.
+            if (!int.TryParse(codigo.Trim(), out int productoId))
+            {
+                return Json(new { success = false, message = "El código escaneado debe ser un ID numérico válido." });
+            }
+
+            // Buscamos directamente por la llave primaria 'Id' en la base de datos local (AppDbContext)
             var producto = await _appContext.Productos
-                .Include(p => p.Categoria) // Incluye la relación de categorías
-                .FirstOrDefaultAsync(p => p.NombreProducto != null && p.NombreProducto.ToUpper() == codigo.ToUpper() || p.Id.ToString() == codigo);
+                .Include(p => p.Categoria)
+                .FirstOrDefaultAsync(p => p.Id == productoId);
 
             if (producto == null)
             {
-                return Json(new { success = false, message = "El material escaneado no está registrado en el inventario." });
+                return Json(new { success = false, message = $"El material con ID #{productoId} no está registrado en el inventario." });
             }
 
             return Json(new
@@ -97,9 +101,8 @@ namespace TGRMXInventario.Controllers
                 success = true,
                 producto = new
                 {
-                    id = producto.Id,
-                    codigo = producto.Id, // Usamos el ID como código visual o ajusta a tu columna código
-                    nombre = producto.NombreProducto,
+                    id = producto.Id, // Enviamos el Id real de vuelta al JavaScript
+                    nombre = producto.NombreProducto ?? "Sin nombre",
                     categoria = producto.Categoria != null ? producto.Categoria.NombreCategoria : "General"
                 }
             });
@@ -115,11 +118,16 @@ namespace TGRMXInventario.Controllers
                 return Json(new { success = false, message = "La solicitud no contiene materiales para descontar." });
             }
 
-            // Iniciamos una transacción de base de datos para asegurar consistencia (si falla uno, no se descuenta ninguno)
+            // Iniciamos una transacción para asegurar que si falla un registro, se revierta todo el lote
             using var dbTransaction = await _appContext.Database.BeginTransactionAsync();
 
             try
             {
+                // 1. Obtener el departamento real del empleado desde el UserContext (rh4)
+                var empleadoRH = await _userContext.rh4.FindAsync(modelo.SolicitanteID);
+                string deptoEmpleado = empleadoRH?.DEPTO_DESCRIPCION ?? "Sin Departamento";
+
+                // 2. Procesar cada material del carrito escaneado
                 foreach (var item in modelo.Materiales)
                 {
                     var producto = await _appContext.Productos.FindAsync(item.ProductoID);
@@ -130,34 +138,50 @@ namespace TGRMXInventario.Controllers
                         return Json(new { success = false, message = $"El producto con ID {item.ProductoID} ya no existe." });
                     }
 
-                    // Validación de Stock disponible
+                    // Validar Stock disponible en el inventario
                     int stockActual = producto.Cantidad ?? 0;
                     if (stockActual < item.Cantidad)
                     {
                         await dbTransaction.RollbackAsync();
+                        // Este mensaje viaja directo al JavaScript con el nombre y las piezas reales
                         return Json(new { success = false, message = $"Stock insuficiente para '{producto.NombreProducto}'. Disponible: {stockActual}, Solicitado: {item.Cantidad}" });
                     }
 
-                    // Restamos la cantidad del inventario de forma segura
+
+                    // A) Restar el stock físico del material
                     producto.Cantidad = stockActual - item.Cantidad;
                     _appContext.Productos.Update(producto);
+
+                    // B) Generar el registro histórico en base al modelo Movimientos
+                    var nuevoMovimiento = new Movimientos
+                    {
+                        EmpleadoID = modelo.SolicitanteID, // Guarda el Id de rh4
+                        ProductoID = item.ProductoID,      // Guarda el Id del material
+                        Tipo = "Descuento",                // Tipo fijo solicitado
+                        Departamento = deptoEmpleado,      // Departamento capturado de rh4
+                        Fecha = DateTime.Now,              // Fecha y hora exacta del escaneo FIN
+                        Cantidad = item.Cantidad           // Cantidad total descontada de esta pieza
+                    };
+
+                    _appContext.Movimientos.Add(nuevoMovimiento);
                 }
 
-                // Guardamos los cambios de stock en la base de datos
+                // 3. Guardar todos los cambios (Stock + Movimientos) en SQL Server
                 await _appContext.SaveChangesAsync();
 
-                // Confirmamos la transacción con éxito
+                // Confirmar transacción de forma segura
                 await dbTransaction.CommitAsync();
 
                 return Json(new { success = true });
             }
             catch (Exception ex)
             {
-                // Si ocurre cualquier error inesperado, revertimos los cambios aplicados en este lote
+                // En caso de error crítico, deshacer todos los cambios del lote
                 await dbTransaction.RollbackAsync();
-                return Json(new { success = false, message = "Error interno del servidor: " + ex.Message });
+                return Json(new { success = false, message = "Error interno al registrar movimientos: " + ex.Message });
             }
         }
+
     }
 
     // ================= VIEWMODELS PARA RECEPCIÓN DE DATOS JSON =================
