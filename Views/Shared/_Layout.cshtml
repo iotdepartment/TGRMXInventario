@@ -10,14 +10,21 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/TGRMXInventario.styles.css" asp-append-version="true" />
     <style>
-        /* Estilos base para móviles (Pantallas < 992px) */
+        
         .sidebar-responsive {
             width: 100%;
             z-index: 1040;
         }
 
         .main-content-responsive {
-            margin-top: 56px;
+            margin-top: 85px; /* Ajustado para dar espacio a la navbar móvil más alta con el logo */
+        }
+
+        /* Estilo para iluminar el botón del menú activo */
+        .nav-pills .nav-link.active {
+            background-color: #0d6efd !important; /* Azul Bootstrap (puedes cambiarlo por tu color) */
+            color: #ffffff !important;
+            font-weight: bold;
         }
 
         /* Comportamiento exclusivo para Computadora (Pantallas >= 992px) */
@@ -41,62 +48,72 @@
                 display: none !important;
             }
         }
+
+
     </style>
 </head>
 <body>
     <!-- Barra superior fija exclusiva para Celulares y Tablets -->
-    <nav class="navbar navbar-dark bg-dark d-lg-none px-3 fixed-top shadow">
+    <nav class="navbar navbar-dark bg-dark d-lg-none px-3 fixed-top shadow py-2">
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <span class="navbar-brand fs-6 fw-bold m-0">TGRMXInventario</span>
+
+        <!-- Logo y Texto integrados en la barra móvil -->
+        <div class="d-flex flex-column align-items-center ms-auto me-auto">
+            <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm mb-1" style="width: 45px; height: 45px;">
+                <img src="~/Images/Logo.png" alt="Logo" style="max-height: 75%; max-width: 75%; object-fit: contain;" />
+            </div>
+            <span class="navbar-brand fs-6 fw-bold m-0 p-0">TGRMXInventario</span>
+        </div>
     </nav>
 
     <div class="container-fluid p-0">
         <div class="d-flex flex-column flex-lg-row">
 
-                <div class="collapse d-lg-flex flex-column p-3 text-white bg-dark shadow-lg sidebar-responsive h-auto m-0 border-0" id="sidebarMenu">
-
+            <div class="collapse d-lg-flex flex-column p-3 text-white bg-dark shadow-lg sidebar-responsive h-auto m-0 border-0" id="sidebarMenu">
                 <div class="pt-4 pt-lg-0 d-flex flex-column h-100 w-100">
 
-                    <!-- Encabezado de la barra lateral -->
+                    <!-- Encabezado de la barra lateral (Computadora / Menú abierto) -->
                     <div class="d-flex align-items-center mb-4 px-2 mt-3 mt-lg-0">
-                        <a href="/Tickets2/Index" class="d-flex align-items-center text-white text-decoration-none gap-2">
-                            <img src="~/Images/Logo.png" alt="Logo" style="height: 40px;" />
-                            <span class="fs-6 fw-bold text-nowrap">TGRMXInventario</span>
+                        <a href="/Descontar/Index" class="d-flex flex-column align-items-center text-white text-decoration-none w-100">
+                            <div class="bg-white rounded-circle d-flex align-items-center justify-content-center mb-2 shadow-sm" style="width: 90px; height: 90px;">
+                                <img src="~/Images/Logo.png" alt="Logo" style="max-height: 75%; max-width: 75%; object-fit: contain;" />
+                            </div>
+                            <span class="fs-4 fw-bold text-nowrap">TGRMXInventario</span>
                         </a>
                     </div>
 
                     <hr class="border-secondary my-2">
 
-                    <!-- Enlaces de Navegación del Segundo Layout -->
-                    <ul class="nav nav-pills flex-column mb-auto gap-1">
+                    <!-- Enlaces de Navegación -->
+                    <ul class="nav nav-pills flex-column mb-auto gap-1" id="menuNavegacion">
                         <li class="nav-item">
-                            <a href="/Home/Index" class="nav-link d-flex align-items-center gap-2">
+                            <a href="/Descontar/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
                                 <i class="bi bi-house"></i> Home
                             </a>
                         </li>
-                        <li>
-                            <a href="/Descontar/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
-                                <i class="bi bi-box-seam"></i> Descontar material
-                            </a>
-                        </li>
-                        <li>
+                        <li class="nav-item">
                             <a href="/Productos/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
                                 <i class="bi bi-box-seam"></i> Productos
                             </a>
                         </li>
-                        <li>
+                        <li class="nav-item">
                             <a href="/Proveedores/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
-                                <i class="bi bi-truck me-2"></i> Proveedores
+                                <i class="bi bi-truck"></i> Proveedores
                             </a>
                         </li>
-                        <li>
+                        <li class="nav-item">
+                            <a href="/Movimientos/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
+                                <i class="bi bi-clock-history"></i> Movimientos
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="/Usuarios/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
-                                <i class="bi bi-person me-2"></i> Usuarios
+                                <i class="bi bi-person"></i> Usuarios
                             </a>
                         </li>
-                        <li>
+                        <li class="nav-item">
                             <a href="#" class="nav-link text-white-50 d-flex align-items-center gap-2">
                                 <i class="bi bi-question-circle"></i> Help
                             </a>
@@ -106,16 +123,37 @@
                     <hr class="border-secondary my-3">
 
                 </div>
-            </div> 
+            </div>
+
             <main class="flex-grow-1 p-4 main-content-responsive" id="dashboardPrincipal">
                 @RenderBody()
             </main>
 
-        </div> 
+        </div>
     </div>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <!-- Script automático para iluminar la pestaña actual según la URL -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const currentUrl = window.location.pathname.toLowerCase();
+            const menuLinks = document.querySelectorAll("#menuNavegacion .nav-link");
+
+            menuLinks.forEach(link => {
+                const linkUrl = link.getAttribute("href").toLowerCase();
+
+                // Si la URL actual coincide o contiene la ruta del enlace, se ilumina
+                if (currentUrl === linkUrl || (linkUrl !== "/descontar/index" && currentUrl.startsWith(linkUrl))) {
+                    link.classList.add("active");
+                    link.classList.remove("text-white-50");
+                }
+            });
+        });
+    </script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

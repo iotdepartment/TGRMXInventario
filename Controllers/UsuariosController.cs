@@ -15,12 +15,38 @@ namespace TGRMXInventario.Controllers
             _userContext = userContext;
         }
 
+        // GET: Usuarios
         public async Task<IActionResult> Index()
         {
-            ViewBag.Empleados = await _userContext.rh4.OrderBy(e => e.NOMBRECOMPLETO).ToListAsync();
-            var usuarios = await _appContext.Usuarios.ToListAsync();
-            return View(usuarios);
+            // 1. Cargar el catálogo completo de RH y de usuarios
+            var listaEmpleados = await _userContext.rh4.ToListAsync();
+            var listaUsuarios = await _appContext.Usuarios.ToListAsync();
+
+            // Enviar a los ViewBag la lista completa para los modales
+            ViewBag.Empleados = listaEmpleados.OrderBy(e => e.NOMBRECOMPLETO).ToList();
+
+            // 2. Cruzar datos en memoria para armar la lista de la tabla
+            var modeloVista = listaUsuarios.Select(usr =>
+            {
+                // Buscamos al empleado en rh4 cuyo Id sea igual al EmpleadoID del usuario
+                var emp = listaEmpleados.FirstOrDefault(e => e.Id == usr.EmpleadoID);
+
+                return new UsuarioListaViewModel
+                {
+                    Id = usr.Id,
+                    EmpleadoID_PK = usr.EmpleadoID, // Pasamos la PK de rh4 para que sigan funcionando los modales
+                    NumeroEmpleado = emp?.EMPLEADO?.ToString() ?? "Sin asignar",
+                    NombreCompleto = emp?.NOMBRECOMPLETO ?? "Empleado no identificado",
+                    Jerarquia = usr.Jerarquia,
+                    Correo = usr.Correo,
+                    Password = usr.Password,
+                    Rol = usr.Rol
+                };
+            }).ToList();
+
+            return View(modeloVista);
         }
+
 
         // POST: Usuarios/Create
         [HttpPost]
