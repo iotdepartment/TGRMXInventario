@@ -73,7 +73,7 @@
                                         </span>
                                     </td>
                                     <td class="fw-bold text-success">
-                                        @(item.Costo.HasValue? item.Costo.Value.ToString("C0") : "$0")
+                                        @(item.Costo.HasValue ? "$" + item.Costo.Value.ToString("N0") : "$0")
                                         <span class="text-muted small fw-normal">@(item.Moneda ?? "MXN")</span>
                                     </td>
                                     <td>
