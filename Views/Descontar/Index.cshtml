@@ -134,6 +134,7 @@
             // Variables globales de estado para la transacción en curso
             let solicitanteId = null;
             let carritoMateriales = []; // Guarda objetos: { id, codigo, nombre, categoria, cantidad }
+            let modoOperacion = "DESCUENTO"; // Modo por defecto: DESCUENTO o AGREGAR
 
             // Elementos del DOM - Solicitante
             const empleadoScan = document.getElementById("empleadoScan");
@@ -182,7 +183,8 @@
                     }
                 });
             }
-                        // ================= 2. ESCANEO CONSECUTIVO Y DESCUENTO INMEDIATO =================
+
+            // ================= 2. ESCANEO CONSECUTIVO Y CONTROL DE OPERACIÓN =================
             if (CodigoScan) {
                 CodigoScan.addEventListener("keydown", function (e) {
                     if (e.key === "Enter") {
@@ -191,49 +193,50 @@
                         this.value = ""; // Limpieza inmediata para el siguiente escaneo continuo
                         if (!codigo) return;
 
-                       // REGLA DE DISPARO O REINICIO: Al escanear el código "FIN"
+                        // REGLA DE DISPARO O REINICIO: Al escanear el código "FIN"
                         if (codigo === "FIN") {
-                            // SI LA TABLA ESTÁ VACÍA: Cancelar operación completa y resetear la estación
                             if (carritoMateriales.length === 0) {
-                                // 1. Limpiar variables de estado en memoria
                                 solicitanteId = null;
-
-                                // 2. Limpiar e indicar al input del solicitante que vuelva a recibir foco
+                                modoOperacion = "DESCUENTO"; // Resetear el modo de control
                                 empleadoScan.disabled = false;
                                 empleadoScan.value = "";
-
-                                // 3. Ocultar los contenedores informativos y de materiales
                                 empleadotitle.classList.add("d-none");
                                 empleadoInfo.classList.add("d-none");
                                 kanbanSection.classList.add("d-none");
-
-                                // 4. Regresar el foco automático al primer paso
                                 empleadoScan.focus();
                                 return;
                             }
 
-                            // SI SÍ HAY MATERIALES: Procesar el descuento inmediato de forma normal
+                            // Procesar la transacción usando la variable adaptativa de modoOperacion
                             procesarDescuentoInmediato();
                             return;
                         }
 
+                        // REGLA DE ADICIÓN INVERSA: Al escanear el código "AGREGAR"
+                        if (codigo === "AGREGAR") {
+                            if (carritoMateriales.length === 0) {
+                                mostrarToastError("Escanea al menos un material antes de usar el código AGREGAR.");
+                                return;
+                            }
+
+                            // Cambiar estado a modo altas/devoluciones y disparar registro inmediato
+                            modoOperacion = "AGREGAR";
+                            procesarDescuentoInmediato();
+                            return;
+                        }
 
                         // REGLA DE BORRADO RÁPIDO: Al escanear el código "BORRAR"
                         if (codigo === "BORRAR") {
                             if (carritoMateriales.length === 0) {
-                                alert("No hay materiales en la lista para remover.");
+                                mostrarToastError("No hay materiales en la lista para remover.");
                                 return;
                             }
 
-                            // Obtener el índice del último material ingresado al lote
                             const ultimoIndex = carritoMateriales.length - 1;
-
-                            // Restar uno a la cantidad de ese material
                             carritoMateriales[ultimoIndex].cantidad--;
 
-                            // Si la cantidad llega a 0, removemos por completo el material del arreglo
                             if (carritoMateriales[ultimoIndex].cantidad <= 0) {
-                                carritoMateriales.pop(); // Elimina el último elemento
+                                carritoMateriales.pop();
                             }
 
                             renderizarTablaMateriales();
@@ -261,16 +264,14 @@
                                     });
                                     renderizarTablaMateriales();
                                 } else {
-                                    // REEMPLAZADO AQUÍ: Muestra el mensaje de la BD en el Toast rojo
-                                    mostrarToastError(data.message || "Material no registrado.");
+                                    mostrarToastError(data.message || "Este material no está registrado en el inventario.");
                                 }
                             })
                             .catch(() => mostrarToastError("Error de red al validar el material."));
                     }
                 });
             }
-
-
+            // ================= 3. RENDERIZADO DE TABLA Y EVENTOS NATIVOS =================
             function renderizarTablaMateriales() {
                 if (carritoMateriales.length === 0) {
                     productosSection.classList.add("d-none");
@@ -328,32 +329,33 @@
                 });
             }
 
-                        // Función para mostrar alertas tipo Toast dinámicas por 2 segundos
+            // Función para mostrar alertas tipo Toast dinámicas por 2 segundos
             function mostrarToastError(mensaje) {
                 const elementoToast = document.getElementById("toastErrorInventario");
                 const textoToast = document.getElementById("toastErrorTexto");
 
                 if (elementoToast && textoToast) {
-                    textoToast.textContent = mensaje; // Inyecta el error de la BD
+                    textoToast.textContent = mensaje;
 
                     // Inicializar el componente nativo de Bootstrap 5
                     const miToast = new bootstrap.Toast(elementoToast, {
-                        delay: 2000,     // Duración de visualización: 2 segundos
-                        autohide: true   // Auto-ocultado automático habilitado
+                        delay: 2000,
+                        autohide: true
                     });
 
                     miToast.show();
                 }
             }
 
-
-            // ================= 3. FUNCIÓN DE ENVÍO DIRECTO AL SERVIDOR =================
+            // ================= 4. FUNCIÓN DE ENVÍO TRANSACCIONAL AL SERVIDOR =================
             function procesarDescuentoInmediato() {
                 const modalExito = new bootstrap.Modal(document.getElementById('modalExitoTemporal'));
 
+                // Armamos el payload incluyendo el Modo dinámico capturado por el escáner ("DESCUENTO" o "AGREGAR")
                 const transaccionSalida = {
                     SolicitanteID: solicitanteId,
                     ReceptorID: solicitanteId,
+                    Modo: modoOperacion, // <--- ENLAZADO AQUÍ CON TU VARIABLE DE CONTROL
                     Materiales: carritoMateriales.map(m => ({ ProductoID: m.id, Cantidad: m.cantidad }))
                 };
 
@@ -367,18 +369,18 @@
                     if (data.success) {
                         modalExito.show();
 
+                        // Temporizador automático de 5 segundos para limpiar la estación
                         setTimeout(function () {
                             window.location.reload();
                         }, 5000);
 
                     } else {
-                        // REEMPLAZADO AQUÍ: Muestra el error de stock insuficiente en el Toast rojo por 2 segundos
-                        mostrarToastError(data.message || "No se pudo procesar la rebaja de inventario.");
+                        // Muestra errores de stock insuficiente o de BD en tu Toast rojo por 2 segundos
+                        mostrarToastError(data.message || "No se pudo procesar la transacción en el inventario.");
                     }
                 })
                 .catch(() => mostrarToastError("Error de comunicación crítica con el servidor."));
             }
-
 
             console.log("Estación de escaneo continuo activa.");
         });

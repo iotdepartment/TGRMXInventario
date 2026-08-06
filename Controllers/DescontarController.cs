@@ -108,17 +108,16 @@ namespace TGRMXInventario.Controllers
             });
         }
 
-        // 3. API POST para procesar el lote completo, restar stock y guardar los cambios
         // POST: /Descontar/ProcesarDescuento
         [HttpPost]
         public async Task<IActionResult> ProcesarDescuento([FromBody] TransaccionSalidaViewModel modelo)
         {
             if (modelo == null || modelo.Materiales == null || !modelo.Materiales.Any())
             {
-                return Json(new { success = false, message = "La solicitud no contiene materiales para descontar." });
+                return Json(new { success = false, message = "La solicitud no contiene materiales para procesar." });
             }
 
-            // Iniciamos una transacción para asegurar que si falla un registro, se revierta todo el lote
+            // Iniciamos una transacción para asegurar consistencia atómica en el inventario
             using var dbTransaction = await _appContext.Database.BeginTransactionAsync();
 
             try
@@ -127,7 +126,11 @@ namespace TGRMXInventario.Controllers
                 var empleadoRH = await _userContext.rh4.FindAsync(modelo.SolicitanteID);
                 string deptoEmpleado = empleadoRH?.DEPTO_DESCRIPCION ?? "Sin Departamento";
 
-                // 2. Procesar cada material del carrito escaneado
+                // 2. Determinar si el flujo es una suma (AGREGAR) o una resta (DESCUENTO)
+                bool esModoAgregar = !string.IsNullOrEmpty(modelo.Modo) && modelo.Modo.ToUpper() == "AGREGAR";
+                string tipoMovimiento = esModoAgregar ? "Agregar" : "Descuento";
+
+                // 3. Procesar cada material del carrito escaneado
                 foreach (var item in modelo.Materiales)
                 {
                     var producto = await _appContext.Productos.FindAsync(item.ProductoID);
@@ -138,49 +141,57 @@ namespace TGRMXInventario.Controllers
                         return Json(new { success = false, message = $"El producto con ID {item.ProductoID} ya no existe." });
                     }
 
-                    // Validar Stock disponible en el inventario
                     int stockActual = producto.Cantidad ?? 0;
-                    if (stockActual < item.Cantidad)
+
+                    if (esModoAgregar)
                     {
-                        await dbTransaction.RollbackAsync();
-                        // Este mensaje viaja directo al JavaScript con el nombre y las piezas reales
-                        return Json(new { success = false, message = $"Stock insuficiente para '{producto.NombreProducto}'. Disponible: {stockActual}, Solicitado: {item.Cantidad}" });
+                        // MODO ENTRADA: Sumar piezas directamente al stock físico
+                        producto.Cantidad = stockActual + item.Cantidad;
+                    }
+                    else
+                    {
+                        // MODO SALIDA: Validar existencias disponibles y restar
+                        if (stockActual < item.Cantidad)
+                        {
+                            await dbTransaction.RollbackAsync();
+                            return Json(new { success = false, message = $"Stock insuficiente para '{producto.NombreProducto}'. Disponible: {stockActual}, Solicitado: {item.Cantidad}" });
+                        }
+                        producto.Cantidad = stockActual - item.Cantidad;
                     }
 
-
-                    // A) Restar el stock físico del material
-                    producto.Cantidad = stockActual - item.Cantidad;
+                    // Actualizar stock del producto
                     _appContext.Productos.Update(producto);
 
-                    // B) Generar el registro histórico en base al modelo Movimientos
+                    // 4. Generar la fila de auditoría para la tabla de Movimientos
                     var nuevoMovimiento = new Movimientos
                     {
-                        EmpleadoID = modelo.SolicitanteID, // Guarda el Id de rh4
-                        ProductoID = item.ProductoID,      // Guarda el Id del material
-                        Tipo = "Descuento",                // Tipo fijo solicitado
-                        Departamento = deptoEmpleado,      // Departamento capturado de rh4
-                        Fecha = DateTime.Now,              // Fecha y hora exacta del escaneo FIN
-                        Cantidad = item.Cantidad           // Cantidad total descontada de esta pieza
+                        EmpleadoID = modelo.SolicitanteID,
+                        ProductoID = item.ProductoID,
+                        Tipo = tipoMovimiento, // Guardará de forma limpia "Descuento" o "Agregar"
+                        Departamento = deptoEmpleado,
+                        Fecha = DateTime.Now,
+                        Cantidad = item.Cantidad
                     };
 
                     _appContext.Movimientos.Add(nuevoMovimiento);
                 }
 
-                // 3. Guardar todos los cambios (Stock + Movimientos) en SQL Server
+                // 5. Guardar el lote completo en SQL Server de manera segura
                 await _appContext.SaveChangesAsync();
 
-                // Confirmar transacción de forma segura
+                // Confirmar la transacción
                 await dbTransaction.CommitAsync();
 
                 return Json(new { success = true });
             }
             catch (Exception ex)
             {
-                // En caso de error crítico, deshacer todos los cambios del lote
+                // En caso de cualquier error imprevisto (ej. pérdida de conexión), deshacer todos los movimientos
                 await dbTransaction.RollbackAsync();
-                return Json(new { success = false, message = "Error interno al registrar movimientos: " + ex.Message });
+                return Json(new { success = false, message = "Error interno en el servidor: " + ex.Message });
             }
         }
+
 
     }
 
@@ -190,8 +201,10 @@ namespace TGRMXInventario.Controllers
     {
         public int SolicitanteID { get; set; }
         public int ReceptorID { get; set; }
+        public string? Modo { get; set; } // <--- Esta propiedad es obligatoria para capturar "AGREGAR" o "DESCUENTO"
         public List<MaterialItemViewModel> Materiales { get; set; } = new List<MaterialItemViewModel>();
     }
+
 
     public class MaterialItemViewModel
     {

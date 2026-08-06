@@ -63,7 +63,11 @@
                                     <td>
                                         @if (item.Tipo == "Descuento")
                                         {
-                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Descuento</span>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Descontado</span>
+                                        }
+                                        else if (item.Tipo == "Agregar")
+                                        {
+                                            <span class="badge bg-danger-subtle text-success border border-danger-subtle rounded-pill">Agregado</span>
                                         }
                                         else
                                         {
