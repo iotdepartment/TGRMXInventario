@@ -81,7 +81,7 @@
 
                     <hr class="border-secondary my-2">
 
-                    <!-- Enlaces de Navegación Protegidos -->
+                    <!-- Enlaces de Navegación Protegidos por Roles -->
                     <ul class="nav nav-pills flex-column mb-auto gap-1" id="menuNavegacion">
                         <li class="nav-item">
                             <a href="/Descontar/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
@@ -89,9 +89,11 @@
                             </a>
                         </li>
 
-                        <!-- SI LA SESIÓN EXPIRA, TODO ESTE BLOQUE DESAPARECE DEL HTML -->
+                        <!-- 1. PRIMER FILTRO: El usuario debe estar logueado para ver cualquier módulo privado -->
                         @if (Context.Session.GetString("UsuarioID") != null)
                         {
+                            var rolActual = Context.Session.GetString("UsuarioRol");
+
                             <li class="nav-item">
                                 <a href="/Productos/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
                                     <i class="bi bi-box-seam"></i> Productos
@@ -107,11 +109,16 @@
                                     <i class="bi bi-clock-history"></i> Movimientos
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a href="/Usuarios/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
-                                    <i class="bi bi-person"></i> Usuarios
-                                </a>
-                            </li>
+
+                            <!-- 2. SEGUNDO FILTRO EXCLUSIVO: Ocultar botón 'Usuarios' si el rol es Requisitor -->
+                            if (rolActual == "Admin" || rolActual == "Tecnico")
+                            {
+                                <li class="nav-item">
+                                    <a href="/Usuarios/Index" class="nav-link text-white-50 d-flex align-items-center gap-2">
+                                        <i class="bi bi-person"></i> Usuarios
+                                    </a>
+                                </li>
+                            }
                         }
 
                         <li class="nav-item">
