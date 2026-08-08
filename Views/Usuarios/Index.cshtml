@@ -45,6 +45,7 @@
                             <th>Empleado</th>
                             <th>Correo Electrónico</th>
                             <th>Rol</th>
+                            <th>Área</th> <!-- NUEVA COLUMNA VISIBLE -->
                             <th class="pe-4 text-end" style="width: 180px;">Acciones</th>
                         </tr>
                     </thead>
@@ -67,6 +68,12 @@
                                             @(item.Rol ?? "Sin Rol")
                                         </span>
                                     </td>
+                                    <td>
+                                        <!-- NUEVA CELDA: Muestra el Área asignada de forma estética -->
+                                        <span class="badge bg-light text-secondary border">
+                                            @(item.Area ?? "Sin Área")
+                                        </span>
+                                    </td>
                                     <td class="pe-4 text-end">
                                         <div class="btn-group" role="group">
                                             <button type="button" class="btn btn-sm btn-outline-warning btn-editar"
@@ -75,7 +82,8 @@
                                                     data-empleado-texto="No. @item.NumeroEmpleado - @item.NombreCompleto"
                                                     data-correo="@item.Correo"
                                                     data-password="@item.Password"
-                                                    data-rol="@item.Rol" title="Editar">
+                                                    data-rol="@item.Rol"
+                                                    data-area="@item.Area" title="Editar">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar"
@@ -90,7 +98,8 @@
                         else
                         {
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">
+                                <!-- Se incrementó el colspan a 6 para cubrir la nueva columna del Área -->
+                                <td colspan="6" class="text-center py-5 text-muted">
                                     <i class="bi bi-people display-4 d-block mb-3 text-secondary"></i>
                                     No hay usuarios registrados.
                                 </td>
@@ -98,13 +107,14 @@
                         }
                     </tbody>
                 </table>
+
             </div>
         </div>
     </div>
 </div>
 
 <!-- ================= MODALES DE ACCIÓN ================= -->
-<!-- Modal: Crear -->
+<!-- Modal: Crear Usuario Adaptativo -->
 <div class="modal fade" id="createUsuarioModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -114,6 +124,8 @@
             </div>
             <form asp-controller="Usuarios" asp-action="Create" method="post">
                 <div class="modal-body p-4">
+
+                    <!-- 1. Buscador Asíncrono de Empleado (rh4) -->
                     <div class="row mb-3 ms-1 me-1">
                         <div class="col-md-12 position-relative">
                             <input type="hidden" name="EmpleadoID" id="hdnIdEmpleadoCreate" required />
@@ -124,17 +136,11 @@
                             <ul id="listaCoincidenciasCreate" class="list-group position-absolute w-100 mt-1 shadow-lg d-none" style="z-index: 1050; max-height: 250px; overflow-y: auto;"></ul>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Correo Electrónico</label>
-                        <input type="email" name="Correo" class="form-control" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Contraseña</label>
-                        <input type="password" name="Password" class="form-control" required />
-                    </div>
+
+                    <!-- 2. Campo Rol: Reubicado inmediatamente después del empleado -->
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Rol</label>
-                        <select name="Rol" class="form-select" required>
+                        <select name="Rol" id="ddlRolCreate" class="form-select" required>
                             <option value="" disabled selected>-- Selecciona un Rol --</option>
                             <option value="Admin">Admin</option>
                             <option value="Tecnico">Tecnico</option>
@@ -142,6 +148,33 @@
                             <option value="Consumidor">Consumidor</option>
                         </select>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Área</label>
+                        <select name="Area" class="form-select" required>
+                            <option value="" disabled selected>-- Selecciona un Área --</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="Toolcrib">Toolcrib</option>
+                            <option value="Enfermeria">Enfermeria</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <!-- Contenedor Dinámico: Se mostrará u ocultará mediante JavaScript -->
+                    <div id="camposCredenciales" class="d-none"> 
+                        <!-- 3. Campo: Correo Electrónico -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Correo Electrónico</label>
+                            <input type="email" name="Correo" id="txtCorreoCreate" class="form-control" />
+                        </div>
+
+                        <!-- 4. Campo: Contraseña -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Contraseña</label>
+                            <input type="password" name="Password" id="txtPasswordCreate" class="form-control" />
+                        </div>
+                    </div>
+
                 </div>
                 <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -151,6 +184,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Modal: Editar -->
 <!-- Modal: Editar Usuario (Sin campo Jerarquía) -->
@@ -184,6 +218,28 @@
                         </div>
                     </div>
 
+                    <!-- Campo: Rol Desplegable -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Rol</label>
+                        <select id="edit_Rol" name="Rol" class="form-select" required>
+                            <option value="Admin">Admin</option>
+                            <option value="Tecnico">Tecnico</option>
+                            <option value="Requisitor">Requisitor</option>
+                            <option value="Consumidor">Consumidor</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Área</label>
+                        <select id="edit_Area" name="Area" class="form-select" required>
+                            <option value="" disabled selected>-- Selecciona un Área --</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="Toolcrib">Toolcrib</option>
+                            <option value="Enfermeria">Enfermeria</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+
                     <!-- Campo: Correo Electrónico -->
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Correo Electrónico</label>
@@ -196,16 +252,6 @@
                         <input type="password" id="edit_Password" name="Password" class="form-control" placeholder="••••••••" />
                     </div>
 
-                    <!-- Campo: Rol Desplegable -->
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Rol</label>
-                        <select id="edit_Rol" name="Rol" class="form-select" required>
-                            <option value="Admin">Admin</option>
-                            <option value="Tecnico">Tecnico</option>
-                            <option value="Requisitor">Requisitor</option>
-                            <option value="Consumidor">Consumidor</option>
-                        </select>
-                    </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -244,7 +290,7 @@
     </div>
 </div>
 
-                    @section Scripts {
+@section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
 
@@ -443,19 +489,23 @@
                 const btnEliminar = e.target.closest('.btn-eliminar');
 
                 if (btnEditar) {
-                    // Mapear los valores de los atributos data al formulario del modal de edición
+                    // ... tus otras asignaciones de Id, Correo, Rol ...
                     document.getElementById('edit_Id').value = btnEditar.getAttribute('data-id');
                     document.getElementById('edit_Correo').value = btnEditar.getAttribute('data-correo');
-                    document.getElementById('edit_Password').value = ""; // Limpio por seguridad, conserva el de la BD si no escriben nada
                     document.getElementById('edit_Rol').value = btnEditar.getAttribute('data-rol');
 
-                    // Sincronizar los inputs del buscador de empleados flotante
+                    // ASIGNACIÓN AUTOMÁTICA DEL SELECT DE ÁREA
+                    document.getElementById('edit_Area').value = btnEditar.getAttribute('data-area') || "Consumidor";
+
+                    // ... sincronización del buscador flotante ...
                     const empleadoVal = btnEditar.getAttribute('data-empleado');
-                    document.getElementById('hdnIdEmpleadoEdit').value = empleadoVal; // ID de la PK de rh4
-                    document.getElementById('txtBuscadorEmpleadoEdit').value = btnEditar.getAttribute('data-empleado-texto') || ""; // Texto visible
+                    document.getElementById('hdnIdEmpleadoEdit').value = empleadoVal;
+                    document.getElementById('txtBuscadorEmpleadoEdit').value = btnEditar.getAttribute('data-empleado-texto') || "";
 
                     modalEdicion.show();
                 }
+
+
 
                 if (btnEliminar) {
                     // Mapear los valores al formulario de confirmación de borrado
@@ -465,6 +515,38 @@
                     modalEliminacion.show();
                 }
             });
+
+            // ================= CONTROL DINÁMICO DE CAMPOS SEGÚN EL ROL =================
+            const ddlRolCreate = document.getElementById("ddlRolCreate");
+            const camposCredenciales = document.getElementById("camposCredenciales");
+            const txtCorreoCreate = document.getElementById("txtCorreoCreate");
+            const txtPasswordCreate = document.getElementById("txtPasswordCreate");
+
+            if (ddlRolCreate) {
+                ddlRolCreate.addEventListener("change", function () {
+                    const rolSeleccionado = this.value;
+
+                    // Roles autorizados para tener credenciales de inicio de sesión
+                    if (rolSeleccionado === "Admin" || rolSeleccionado === "Tecnico" || rolSeleccionado === "Requisitor") {
+                        // 1. Mostrar los campos con una transición limpia quitando 'd-none'
+                        camposCredenciales.classList.remove("d-none");
+
+                        // 2. Activar la validación HTML obligatoria ('required') para estos roles
+                        txtCorreoCreate.required = true;
+                        txtPasswordCreate.required = true;
+                    } else {
+                        // 1. Ocultar los campos si es Consumidor o está vacío
+                        camposCredenciales.classList.add("d-none");
+
+                        // 2. Desactivar 'required' y limpiar los inputs para que no manden basura al servidor
+                        txtCorreoCreate.required = false;
+                        txtPasswordCreate.required = false;
+                        txtCorreoCreate.value = "";
+                        txtPasswordCreate.value = "";
+                    }
+                });
+            }
+
 
             console.log("Controladores de scripts para el catálogo de usuarios cargados correctamente.");
         });

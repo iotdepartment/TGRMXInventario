@@ -29,13 +29,6 @@
         <!-- ================= COLUMNA IZQUIERDA: ESCANEO E INFORMACIÓN DEL SOLICITANTE ================= -->
         <div class="col-lg-4 col-md-5 mb-4">
 
-            <!-- Bloque 1: Tarjeta de Escaneo -->
-            <div class="card rounded-pill mb-3 border-0 shadow-sm">
-                <div class="card-body text-center py-2">
-                    <h2 class="h5 fw-bold mb-0">👷 Escaneo de Empleado Solicitante</h2>
-                </div>
-            </div>
-
             <div class="card rounded-4 border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <label for="empleadoScan" class="form-label fw-bold">Número de empleado</label>
@@ -44,13 +37,6 @@
                         <input id="empleadoScan" type="text" class="form-control"
                                placeholder="Escanea o escribe tu número de empleado" autofocus autocomplete="off" />
                     </div>
-                </div>
-            </div>
-
-            <!-- Bloque 2: Tarjeta de Información (Aparece justo abajo del escáner tras validar) -->
-            <div id="empleadotitle" class="card rounded-pill d-none mb-3 border-0 shadow-sm">
-                <div class="card-body text-center py-2">
-                    <h2 class="h5 fw-bold mb-0">📋 Información del Solicitante</h2>
                 </div>
             </div>
 
@@ -136,16 +122,12 @@
     <div id="toastErrorInventario" class="toast align-items-center text-white bg-danger border-0 rounded-3 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000">
         <div class="d-flex">
             <div class="toast-body d-flex align-items-center gap-2">
-                <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" class="bi bi-exclamation-triangle-fill" viewBox="0 0 16 16">
-                    <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
-                </svg>
                 <span id="toastErrorTexto" class="fw-semibold small">El material no está registrado en el inventario.</span>
             </div>
             <button type="button" class="btn-close btn-close-white m-auto me-2" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
     </div>
 </div>
-
 
 @section Scripts {
     <script>
@@ -157,7 +139,6 @@
 
             // Elementos del DOM - Solicitante
             const empleadoScan = document.getElementById("empleadoScan");
-            const empleadotitle = document.getElementById("empleadotitle");
             const empleadoInfo = document.getElementById("empleadoInfo");
             const empleadoNombre = document.getElementById("empleadoNombre");
             const empleadoNumero = document.getElementById("empleadoNumero");
@@ -188,7 +169,6 @@
                                     empleadoPuesto.textContent = data.empleado.puesto;
                                     empleadoDepto.textContent = data.empleado.departamento;
 
-                                    empleadotitle.classList.remove("d-none");
                                     empleadoInfo.classList.remove("d-none");
                                     kanbanSection.classList.remove("d-none");
                                     empleadoScan.disabled = true;
@@ -219,7 +199,6 @@
                                 modoOperacion = "DESCUENTO"; // Resetear el modo de control
                                 empleadoScan.disabled = false;
                                 empleadoScan.value = "";
-                                empleadotitle.classList.add("d-none");
                                 empleadoInfo.classList.add("d-none");
                                 kanbanSection.classList.add("d-none");
                                 empleadoScan.focus();

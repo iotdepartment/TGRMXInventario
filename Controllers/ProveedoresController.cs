@@ -18,6 +18,7 @@ namespace TGRMXInventario.Controllers
         // Muestra la tabla con el listado completo de proveedores
         public async Task<IActionResult> Index()
         {
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
             var proveedores = await _context.Proveedores.ToListAsync();
             return View(proveedores);
         }

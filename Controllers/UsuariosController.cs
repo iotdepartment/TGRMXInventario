@@ -18,6 +18,7 @@ namespace TGRMXInventario.Controllers
         // GET: Usuarios
         public async Task<IActionResult> Index()
         {
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
             // 1. Cargar el catálogo completo de RH y de usuarios
             var listaEmpleados = await _userContext.rh4.ToListAsync();
             var listaUsuarios = await _appContext.Usuarios.ToListAsync();
@@ -37,7 +38,7 @@ namespace TGRMXInventario.Controllers
                     EmpleadoID_PK = usr.EmpleadoID, // Pasamos la PK de rh4 para que sigan funcionando los modales
                     NumeroEmpleado = emp?.EMPLEADO?.ToString() ?? "Sin asignar",
                     NombreCompleto = emp?.NOMBRECOMPLETO ?? "Empleado no identificado",
-                    Jerarquia = usr.Jerarquia,
+                    Area = usr.Area,
                     Correo = usr.Correo,
                     Password = usr.Password,
                     Rol = usr.Rol
@@ -51,7 +52,7 @@ namespace TGRMXInventario.Controllers
         // POST: Usuarios/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("EmpleadoID,Jerarquia,Correo,Password,Rol")] Usuarios usuario)
+        public async Task<IActionResult> Create([Bind("EmpleadoID,Area,Correo,Password,Rol")] Usuarios usuario)
         {
             if (ModelState.IsValid)
             {
@@ -74,7 +75,7 @@ namespace TGRMXInventario.Controllers
         // POST: Usuarios/Edit
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,EmpleadoID,Jerarquia,Correo,Password,Rol")] Usuarios usuario)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,EmpleadoID,Area,Correo,Password,Rol")] Usuarios usuario)
         {
             if (id != usuario.Id)
             {

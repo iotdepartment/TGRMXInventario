@@ -19,6 +19,7 @@ namespace TGRMXInventario.Controllers
         // GET: Movimientos
         public async Task<IActionResult> Index()
         {
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
             // 1. ELIMINADO EL .Include() QUE REVENTABA LA PÁGINA
             var listaMovimientos = await _appContext.Movimientos
                 .OrderByDescending(m => m.Fecha) // Los registros más recientes aparecen arriba

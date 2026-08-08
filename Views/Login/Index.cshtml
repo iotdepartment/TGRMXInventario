@@ -11,7 +11,7 @@
                 <img src="~/Images/Logo.png" alt="Toyoda Gosei" class="img-fluid" style="max-height: 70px;" />
             </div>
 
-            <h4 class="fw-bold mb-4"> TGRMX IT Tickets System</h4>
+            <h4 class="fw-bold mb-4">TGRMX Inventario</h4>
 
             <!-- Contenedor dinámico para errores AJAX -->
             <div id="loginAlert" class="alert alert-danger rounded-4 d-none"></div>
@@ -73,7 +73,7 @@
         .then(data => {
             if (data.success) {
                 // Redirecciona al panel principal si las credenciales coinciden
-                window.location.href = '/GestionarTickets/Index';
+                window.location.href = '/Descontar/Index';
             } else {
                 // Muestra el mensaje de error directamente en la tarjeta de login
                 alertBox.textContent = data.message || "Credenciales incorrectas.";

@@ -17,6 +17,7 @@ namespace TGRMXInventario.Controllers
         // GET: Productos
         public async Task<IActionResult> Index()
         {
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
             // 1. Cargar las categorías para el modal
             ViewBag.Categorias = await _context.Categorias
                 .OrderBy(c => c.NombreCategoria)

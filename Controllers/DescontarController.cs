@@ -18,6 +18,12 @@ namespace TGRMXInventario.Controllers
         // GET: Descontar
         public IActionResult Index()
         {
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
+            return View();
+        }
+
+        public IActionResult Main()
+        {
             return View();
         }
 
