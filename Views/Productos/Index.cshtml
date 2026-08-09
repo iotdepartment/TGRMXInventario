@@ -95,7 +95,7 @@
                                                     data-categoria="@item.CategoriaID" data-proveedor="@item.ProveedorID"
                                                     data-costo="@item.Costo" data-unidad="@item.Unidad"
                                                     data-moneda="@item.Moneda" data-cantidad="@item.Cantidad"
-                                                    data-min="@item.Min" data-max="@item.Max" title="Editar">
+                                                    data-min="@item.Min" data-max="@item.Max" data-area="@item.Area" title="Editar">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar"
@@ -124,7 +124,7 @@
 </div>
 
 <!-- =========================================================
-     MODAL: REGISTRAR NUEVO PRODUCTO
+     MODAL: REGISTRAR NUEVO PRODUCTO (MODIFICADO)
      ========================================================= -->
 <div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -136,17 +136,36 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <!-- El formulario se conecta directamente a la acción 'Create' del Controlador -->
             <form asp-action="Create" method="post">
                 @Html.AntiForgeryToken()
                 <div class="modal-body px-4 py-3">
 
-                    <!-- Fila 1: Nombre del Producto -->
+                    <!-- Fila 1: Nombre del Producto y Área Condicional -->
                     <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label for="NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
-                            <input type="text" name="NombreProducto" id="NombreProducto" class="form-control" placeholder="Ej. Cable UTP Categoría 6" required />
-                        </div>
+                        @if (Context.Session.GetString("UsuarioRol") == "Requisitor")
+                        {
+                            <!-- Si es Requisitor: El campo ocupa todo el ancho y no hay select visible -->
+                            <div class="col-md-12 mb-3">
+                                <label for="NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
+                                <input type="text" name="NombreProducto" id="NombreProducto" class="form-control" placeholder="Ej. Cable UTP Categoría 6" required />
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- Si es Admin o Tecnico: Se muestra el select de forma normal -->
+                            <div class="col-md-8 mb-3">
+                                <label for="NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
+                                <input type="text" name="NombreProducto" id="NombreProducto" class="form-control" placeholder="Ej. Cable UTP Categoría 6" required />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="Area" class="form-label fw-semibold text-secondary small">Área</label>
+                                <select name="Area" id="Area" class="form-select" required>
+                                    <option value="" disabled selected>-- Seleccionar --</option>
+                                    <option value="Mantenimiento">Mantenimiento</option>
+                                    <option value="Recursos Humanos">Recursos Humanos</option>
+                                </select>
+                            </div>
+                        }
                     </div>
 
                     <!-- Fila 2: Categoría y Proveedor -->
@@ -232,7 +251,6 @@
 
                 </div>
 
-                <!-- Acciones del Formulario -->
                 <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary btn-sm px-4">Guardar Producto</button>
@@ -241,6 +259,7 @@
         </div>
     </div>
 </div>
+
 
 
 <!-- =========================================================
@@ -264,13 +283,33 @@
                     <!-- ID Oculto indispensable para que Entity Framework localice el registro original -->
                     <input type="hidden" name="Id" id="edit_Id" />
 
-                    <!-- Fila 1: Nombre del Producto -->
+                    <!-- Fila 1: Nombre del Producto y Área Condicional en Edición -->
                     <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label for="edit_NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
-                            <input type="text" name="NombreProducto" id="edit_NombreProducto" class="form-control" required />
-                        </div>
+                        @if (Context.Session.GetString("UsuarioRol") == "Requisitor")
+                        {
+                            <!-- Si es Requisitor: Ocupa todo el ancho sin select visible -->
+                            <div class="col-md-12 mb-3">
+                                <label for="edit_NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
+                                <input type="text" name="NombreProducto" id="edit_NombreProducto" class="form-control" required />
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- Si es Admin o Tecnico: Se muestra el select con su ID correspondiente -->
+                            <div class="col-md-8 mb-3">
+                                <label for="edit_NombreProducto" class="form-label fw-semibold text-secondary small">Nombre del Producto</label>
+                                <input type="text" name="NombreProducto" id="edit_NombreProducto" class="form-control" required />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="edit_Area" class="form-label fw-semibold text-secondary small">Área</label>
+                                <select name="Area" id="edit_Area" class="form-select" required>
+                                    <option value="Mantenimiento">Mantenimiento</option>
+                                    <option value="Recursos Humanos">Recursos Humanos</option>
+                                </select>
+                            </div>
+                        }
                     </div>
+
 
                     <!-- Fila 2: Categoría y Proveedor -->
                     <div class="row">
@@ -522,6 +561,13 @@
                     document.getElementById('edit_Cantidad').value = btnEditar.getAttribute('data-cantidad');
                     document.getElementById('edit_Min').value = btnEditar.getAttribute('data-min');
                     document.getElementById('edit_Max').value = btnEditar.getAttribute('data-max');
+
+                    // AJUSTE CORREGIDO: Solo intenta rellenar el select si existe en el DOM (No es Requisitor)
+                    const selectArea = document.getElementById('edit_Area');
+                    if (selectArea) {
+                        selectArea.value = btnEditar.getAttribute('data-area') || "";
+                    }
+
                     modalEdicion.show();
                 }
 

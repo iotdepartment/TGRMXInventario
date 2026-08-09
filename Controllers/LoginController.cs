@@ -64,7 +64,7 @@ namespace TGRMXInventario.Controllers
                 HttpContext.Session.SetString("UsuarioCorreo", usuarioSistema.Correo ?? "");
                 HttpContext.Session.SetString("UsuarioRol", usuarioSistema.Rol ?? "Consumidor");
                 HttpContext.Session.SetString("EmpleadoNombre", empleadoRH.NOMBRECOMPLETO ?? "Usuario");
-
+                HttpContext.Session.SetString("UsuarioArea", usuarioSistema.Area ?? "");
                 // CORREGIDO: Se registra la estampa de tiempo ANTES de cerrar el método con el return
                 HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
 
@@ -107,11 +107,13 @@ namespace TGRMXInventario.Controllers
         }
 
         // GET: /Login/Logout
-        // Cierra y limpia la sesión del usuario de forma segura
         public IActionResult Logout()
         {
+            // 1. Limpiar y destruir todas las variables del perfil de la memoria del servidor
             HttpContext.Session.Clear();
-            return RedirectToAction(nameof(Index));
+
+            // 2. Redirigir explícitamente al controlador Descontar y su acción Index
+            return RedirectToAction("Index", "Descontar");
         }
     }
 }

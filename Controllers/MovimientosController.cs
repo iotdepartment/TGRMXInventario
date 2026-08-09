@@ -19,24 +19,48 @@ namespace TGRMXInventario.Controllers
         // GET: Movimientos
         public async Task<IActionResult> Index()
         {
+            // 1. Registrar estampa de tiempo real para mantener vivo el temporizador de 30 minutos
             HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
-            // 1. ELIMINADO EL .Include() QUE REVENTABA LA PÁGINA
-            var listaMovimientos = await _appContext.Movimientos
-                .OrderByDescending(m => m.Fecha) // Los registros más recientes aparecen arriba
-                .ToListAsync();
 
-            // 2. Traer el catálogo de empleados de recursos humanos y productos para el cruce en memoria
+            // 2. Recuperar el Rol y el Área del usuario autenticado desde la Sesión
+            string? userRol = HttpContext.Session.GetString("UsuarioRol");
+            string? userArea = HttpContext.Session.GetString("UsuarioArea");
+
+            // 3. Cargar el catálogo completo de empleados de recursos humanos en memoria para el cruce de nombres
             var listaEmpleados = await _userContext.rh4.ToListAsync();
-            var listaProductos = await _appContext.Productos.ToListAsync();
 
-            // 3. Mapear y cruzar la información para construir el ViewModel
-            var modeloVista = listaMovimientos.Select(mov =>
+            // 4. Inicializar las consultas base de la base de datos local
+            IQueryable<Movimientos> consultaMovimientos = _appContext.Movimientos;
+            IQueryable<Productos> consultaProductos = _appContext.Productos;
+
+            // 5. APLICAR FILTRO DE AUDITORÍA SI EL OPERADOR ES REQUISITOR
+            if (!string.IsNullOrEmpty(userRol) && userRol.Equals("Requisitor", StringComparison.OrdinalIgnoreCase))
             {
-                // Buscar los datos del empleado en rh4 cruzando por el EmpleadoID guardado
-                var emp = listaEmpleados.FirstOrDefault(e => e.Id == mov.EmpleadoID);
+                // Si el área de la sesión llega vacía por error, devolvemos una lista vacía por protección
+                if (string.IsNullOrEmpty(userArea))
+                {
+                    return View(new List<MovimientoViewModel>());
+                }
 
-                // Buscar los datos del producto cruzando por el ProductoID guardado
-                var prod = listaProductos.FirstOrDefault(p => p.Id == mov.ProductoID);
+                // A) Obtener los IDs de todos los productos que pertenecen al área del Requisitor
+                var idsProductosArea = await consultaProductos
+                    .Where(p => p.Area != null && p.Area.ToLower() == userArea.ToLower())
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                // B) Filtrar los movimientos para que solo traiga los que correspondan a esos productos
+                consultaMovimientos = consultaMovimientos.Where(m => m.ProductoID.HasValue && idsProductosArea.Contains(m.ProductoID.Value));
+            }
+
+            // 6. Ejecutar las consultas finales de forma asíncrona hacia SQL Server
+            var listaMovimientosFinal = await consultaMovimientos.OrderByDescending(m => m.Fecha).ToListAsync();
+            var listaProductosFinal = await consultaProductos.ToListAsync();
+
+            // 7. Mapear y cruzar la información en memoria para construir el ViewModel que requiere la tabla
+            var modeloVista = listaMovimientosFinal.Select(mov =>
+            {
+                var emp = listaEmpleados.FirstOrDefault(e => e.Id == mov.EmpleadoID);
+                var prod = listaProductosFinal.FirstOrDefault(p => p.Id == mov.ProductoID);
 
                 return new MovimientoViewModel
                 {
@@ -53,6 +77,7 @@ namespace TGRMXInventario.Controllers
 
             return View(modeloVista);
         }
+
 
     }
 }

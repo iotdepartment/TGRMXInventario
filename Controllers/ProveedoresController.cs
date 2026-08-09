@@ -15,20 +15,58 @@ namespace TGRMXInventario.Controllers
         }
 
         // GET: Proveedores
-        // Muestra la tabla con el listado completo de proveedores
         public async Task<IActionResult> Index()
         {
+            // 1. Registrar estampa de tiempo real para mantener vivo el temporizador de 30 minutos
             HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
-            var proveedores = await _context.Proveedores.ToListAsync();
-            return View(proveedores);
+
+            // 2. Recuperar el Rol y el Área del usuario autenticado desde la Sesión
+            string? userRol = HttpContext.Session.GetString("UsuarioRol");
+            string? userArea = HttpContext.Session.GetString("UsuarioArea") ?? HttpContext.Session.GetString("Area");
+            // Nota: Si no guardaste el Área al loguearte, abajo te enseño cómo añadirla al LoginController.
+
+            // 3. Inicializar la consulta base de Entity Framework sobre la tabla Proveedores
+            IQueryable<Proveedores> consultaProveedores = _context.Proveedores;
+
+            // 4. APLICAR FILTRO ESTRICTO SI EL ROL ES REQUISITOR
+            if (!string.IsNullOrEmpty(userRol) && userRol.Equals("Requisitor", StringComparison.OrdinalIgnoreCase))
+            {
+                // Si el área de la sesión llega vacía por error, forzamos una lista en blanco por seguridad
+                if (string.IsNullOrEmpty(userArea))
+                {
+                    return View(new List<Proveedores>());
+                }
+
+                // Filtramos en SQL Server para que solo traiga proveedores de la misma área
+                consultaProveedores = consultaProveedores.Where(p => p.Area != null && p.Area.ToLower() == userArea.ToLower());
+            }
+
+            // 5. Ejecutar la consulta de forma asíncrona y enviar el listado final a la vista
+            var resultadoProveedores = await consultaProveedores.OrderBy(p => p.NombreProveedor).ToListAsync();
+            return View(resultadoProveedores);
         }
 
         // POST: Proveedores/Create
-        // Procesa el formulario del modal "Agregar Proveedor"
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("NombreProveedor,Contacto,Correo,Telefono")] Proveedores proveedor)
+        public async Task<IActionResult> Create([Bind("NombreProveedor,Area,Contacto,Correo,Telefono")] Proveedores proveedor)
         {
+            // 1. Mantener actualizado el contador real de actividad de 30 minutos
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
+
+            // 2. Extraer el rol y el área de la cuenta logueada
+            string? userRol = HttpContext.Session.GetString("UsuarioRol");
+            string? userArea = HttpContext.Session.GetString("UsuarioArea");
+
+            // 3. BLINDAJE INTERNO: Forzar el área de la sesión si es Requisitor
+            if (!string.IsNullOrEmpty(userRol) && userRol.Equals("Requisitor", StringComparison.OrdinalIgnoreCase))
+            {
+                proveedor.Area = userArea ?? "Sin Área";
+
+                // Removemos el campo de las reglas de validación automáticas de .NET
+                ModelState.Remove("Area");
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(proveedor);
@@ -36,20 +74,40 @@ namespace TGRMXInventario.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Si el estado del modelo no es válido, vuelve a cargar la lista con los datos actuales
+            // Si ocurre un error, recargar el catálogo manteniendo las restricciones de seguridad
             var proveedores = await _context.Proveedores.ToListAsync();
+
+            if (!string.IsNullOrEmpty(userRol) && userRol.Equals("Requisitor", StringComparison.OrdinalIgnoreCase))
+            {
+                proveedores = proveedores.Where(p => p.Area != null && p.Area.ToLower() == userArea!.ToLower()).ToList();
+            }
+
             return View("Index", proveedores);
         }
 
-        // POST: Proveedores/Edit
-        // Procesa el formulario del modal "Editar Proveedor"
+
+        // POST: Proveedores/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,NombreProveedor,Contacto,Correo,Telefono")] Proveedores proveedor)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,NombreProveedor,Area,Contacto,Correo,Telefono")] Proveedores proveedor)
         {
             if (id != proveedor.Id)
             {
                 return NotFound();
+            }
+
+            // 1. Renovar estampa de tiempo real de 30 minutos
+            HttpContext.Session.SetString("UltimaActividadReal", DateTime.Now.ToString());
+
+            // 2. Extraer rol y área actuales de la sesión
+            string? userRol = HttpContext.Session.GetString("UsuarioRol");
+            string? userArea = HttpContext.Session.GetString("UsuarioArea");
+
+            // 3. CANDADO DE BACKEND: Si es Requisitor, forzar el área de su sesión de forma estricta
+            if (!string.IsNullOrEmpty(userRol) && userRol.Equals("Requisitor", StringComparison.OrdinalIgnoreCase))
+            {
+                proveedor.Area = userArea ?? "Sin Área";
+                ModelState.Remove("Area"); // Excluir de validaciones del modelo
             }
 
             if (ModelState.IsValid)
@@ -61,21 +119,23 @@ namespace TGRMXInventario.Controllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!ProveedorExists(proveedor.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    if (!ProveedorExists(proveedor.Id)) return NotFound();
+                    else throw;
                 }
                 return RedirectToAction(nameof(Index));
             }
 
+            // Si el formulario falla, recargar con el filtrado correspondiente
             var proveedores = await _context.Proveedores.ToListAsync();
+            if (!string.IsNullOrEmpty(userRol) && userRol.Equals("Requisitor", StringComparison.OrdinalIgnoreCase))
+            {
+                proveedores = proveedores.Where(p => p.Area != null && p.Area.ToLower() == userArea!.ToLower()).ToList();
+            }
+
             return View("Index", proveedores);
         }
+
+
 
         // POST: Proveedores/Delete
         // Procesa la confirmación del modal "¿Eliminar?"

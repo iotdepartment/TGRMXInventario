@@ -38,8 +38,9 @@
                 <table id="miTablaProveedores" class="table table-hover align-middle mb-0">
                     <thead class="table-light text-uppercase fs-7 text-muted">
                         <tr>
-                            <th class="ps-4" style="width: 80px;">ID</th>
-                            <th>Proveedor</th>
+                            <!-- SE REMOVIÓ LA COLUMNA DE ID -->
+                            <th class="ps-4">Proveedor</th>
+                            <th>Área</th> <!-- NUEVA COLUMNA VISIBLE -->
                             <th>Contacto Principal</th>
                             <th>Correo Electrónico</th>
                             <th>Teléfono</th>
@@ -52,9 +53,15 @@
                             foreach (var item in Model)
                             {
                                 <tr>
-                                    <td class="ps-4 fw-bold text-secondary">#@item.Id</td>
-                                    <td>
+                                    <!-- SE REMOVIÓ LA CELDA DE ID -->
+                                    <td class="ps-4">
                                         <div class="fw-semibold text-dark">@(item.NombreProveedor ?? "Sin nombre")</div>
+                                    </td>
+                                    <td>
+                                        <!-- NUEVA CELDA: Muestra el Área asignada con estilo de badge -->
+                                        <span class="badge bg-light text-secondary border">
+                                            @(item.Area ?? "Sin Área")
+                                        </span>
                                     </td>
                                     <td>
                                         <span class="text-dark small">@(item.Contacto ?? "Sin contacto")</span>
@@ -68,9 +75,12 @@
                                     <td class="pe-4 text-end">
                                         <div class="btn-group" role="group">
                                             <button type="button" class="btn btn-sm btn-outline-warning btn-editar"
-                                                    data-id="@item.Id" data-nombre="@item.NombreProveedor"
-                                                    data-contacto="@item.Contacto" data-correo="@item.Correo"
-                                                    data-telefono="@item.Telefono" title="Editar">
+                                                    data-id="@item.Id"
+                                                    data-nombre="@item.NombreProveedor"
+                                                    data-area="@item.Area"
+                                                    data-contacto="@item.Contacto"
+                                                    data-correo="@item.Correo"
+                                                    data-telefono="@item.Telefono">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar"
@@ -85,6 +95,7 @@
                         else
                         {
                             <tr>
+                                <!-- Se ajustó el colspan a 6 columnas tras quitar el ID y agregar el Área -->
                                 <td colspan="6" class="text-center py-5 text-muted">
                                     <i class="bi bi-truck display-4 d-block mb-3 text-secondary"></i>
                                     No hay proveedores registrados.
@@ -93,13 +104,13 @@
                         }
                     </tbody>
                 </table>
+
             </div>
         </div>
     </div>
 </div>
 
 <!-- ================= MODALES DE ACCIÓN ================= -->
-<!-- Modal: Crear -->
 <div class="modal fade" id="createProveedorModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -109,10 +120,26 @@
             </div>
             <form asp-controller="Proveedores" asp-action="Create" method="post">
                 <div class="modal-body p-4">
+
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Nombre del Proveedor</label>
                         <input type="text" name="NombreProveedor" class="form-control" required />
                     </div>
+
+                    <!-- Validación de Rol con Razor desde el Servidor -->
+                    @if (Context.Session.GetString("UsuarioRol") != "Requisitor")
+                    {
+                        <!-- Solo se renderiza si el usuario es Admin o Técnico -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Área</label>
+                            <select name="Area" class="form-select" required>
+                                <option value="" disabled selected>-- Selecciona un Área --</option>
+                                <option value="Mantenimiento">Mantenimiento</option>
+                                <option value="Recursos Humanos">Recursos Humanos</option>
+                            </select>
+                        </div>
+                    }
+
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Persona de Contacto</label>
                         <input type="text" name="Contacto" class="form-control" />
@@ -135,7 +162,8 @@
     </div>
 </div>
 
-<!-- Modal: Editar -->
+
+<!-- Modal: Editar Proveedor Adaptativo y Seguro -->
 <div class="modal fade" id="editProveedorModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -150,6 +178,20 @@
                         <label class="form-label small fw-semibold text-muted">Nombre del Proveedor</label>
                         <input type="text" id="edit_NombreProveedor" name="NombreProveedor" class="form-control" required />
                     </div>
+
+                    <!-- Validación de Rol con Razor desde el Servidor -->
+                    @if (Context.Session.GetString("UsuarioRol") != "Requisitor")
+                    {
+                        <!-- Solo se muestra si el usuario es Admin o Técnico -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted">Área</label>
+                            <select id="edit_Area" name="Area" class="form-select" required>
+                                <option value="Mantenimiento">Mantenimiento</option>
+                                <option value="Recursos Humanos">Recursos Humanos</option>
+                            </select>
+                        </div>
+                    }
+
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-muted">Persona de Contacto</label>
                         <input type="text" id="edit_Contacto" name="Contacto" class="form-control" />
@@ -171,6 +213,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Modal: Eliminar Proveedor -->
 <div class="modal fade" id="deleteProveedorModal" tabindex="-1" aria-hidden="true">
@@ -334,8 +377,17 @@
                     document.getElementById('edit_Contacto').value = btnEditar.getAttribute('data-contacto');
                     document.getElementById('edit_Correo').value = btnEditar.getAttribute('data-correo');
                     document.getElementById('edit_Telefono').value = btnEditar.getAttribute('data-telefono');
+
+                    // CONTROL DE CONTROL: Solo asigna valor si el select 'edit_Area' existe en la pantalla
+                    const selectAreaEdit = document.getElementById('edit_Area');
+                    if (selectAreaEdit) {
+                        selectAreaEdit.value = btnEditar.getAttribute('data-area') || "";
+                    }
+
                     modalEdicion.show();
                 }
+
+
 
                 if (btnEliminar) {
                     document.getElementById('delete_Id').value = btnEliminar.getAttribute('data-id');
