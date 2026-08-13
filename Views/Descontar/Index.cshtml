@@ -151,37 +151,56 @@
             const productosSection = document.getElementById("productosSection");
             const productosBody = document.getElementById("productosBody");
 
-            // ================= 1. ESCANEO DEL EMPLEADO SOLICITANTE =================
-            if (empleadoScan) {
-                empleadoScan.addEventListener("keydown", function (e) {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        const numeroEmpleado = this.value.trim();
-                        if (!numeroEmpleado) return;
+                    // ================= 1. ESCANEO DEL EMPLEADO SOLICITANTE =================
+        if (empleadoScan) {
+            empleadoScan.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    const numeroEmpleado = this.value.trim();
+                    if (!numeroEmpleado) return;
 
-                        fetch(`/Descontar/ObtenereMpleado?idEmpleado=${encodeURIComponent(numeroEmpleado)}`)
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
-                                    solicitanteId = data.empleado.id;
-                                    empleadoNombre.textContent = data.empleado.nombre;
-                                    empleadoNumero.textContent = data.empleado.numero;
-                                    empleadoPuesto.textContent = data.empleado.puesto;
-                                    empleadoDepto.textContent = data.empleado.departamento;
+                    fetch(`/Descontar/ObtenereMpleado?idEmpleado=${encodeURIComponent(numeroEmpleado)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                solicitanteId = data.empleado.id;
+                                empleadoNombre.textContent = data.empleado.nombre;
+                                empleadoNumero.textContent = data.empleado.numero;
+                                empleadoPuesto.textContent = data.empleado.puesto;
+                                empleadoDepto.textContent = data.empleado.departamento;
 
-                                    empleadoInfo.classList.remove("d-none");
-                                    kanbanSection.classList.remove("d-none");
-                                    empleadoScan.disabled = true;
-                                    CodigoScan.focus();
-                                } else {
-                                    alert(data.message || "Empleado no registrado.");
-                                    this.value = "";
+                                // BLOQUE SEGURO ENCAPSULADO PARA LA FOTO:
+                                // Intenta cargar la imagen, pero si hay un error no rompe el flujo de abajo
+                                try {
+                                    const empleadoFoto = document.getElementById("empleadoFoto");
+                                    if (empleadoFoto && data.empleado.numero) {
+                                        empleadoFoto.src = `/Descontar/ObtenerFotoEmpleado?id=${data.empleado.numero}`;
+                                    }
+
+                                    // Si usas la tarjeta de título, la mostramos, si no existe la ignora
+                                    const empleadotitle = document.getElementById("empleadotitle");
+                                    if (empleadotitle) {
+                                        empleadotitle.classList.remove("d-none");
+                                    }
+                                } catch (errFoto) {
+                                    console.warn("Aviso: No se pudo renderizar el contenedor de imagen decorativo.");
                                 }
-                            })
-                            .catch(() => alert("Error al validar el empleado."));
-                    }
-                });
-            }
+
+                                // Tu lógica original intacta que ya te funcionaba
+                                empleadoInfo.classList.remove("d-none");
+                                kanbanSection.classList.remove("d-none");
+                                empleadoScan.disabled = true;
+                                CodigoScan.focus();
+                            } else {
+                                alert(data.message || "Empleado no registrado.");
+                                this.value = "";
+                            }
+                        })
+                        .catch(() => alert("Error al validar el empleado."));
+                }
+            });
+        }
+
 
             // ================= 2. ESCANEO CONSECUTIVO Y CONTROL DE OPERACIÓN =================
             if (CodigoScan) {

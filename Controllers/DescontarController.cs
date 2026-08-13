@@ -8,11 +8,14 @@ namespace TGRMXInventario.Controllers
     {
         private readonly AppDbContext _appContext;
         private readonly UserContext _userContext;
+        private readonly IWebHostEnvironment _env;
+        private static string _filebrowserToken = null;
 
-        public DescontarController(AppDbContext appContext, UserContext userContext)
+        public DescontarController(AppDbContext appContext, UserContext userContext, IWebHostEnvironment env)
         {
             _appContext = appContext;
             _userContext = userContext;
+            _env = env;
         }
 
         // GET: Descontar
@@ -114,6 +117,83 @@ namespace TGRMXInventario.Controllers
             });
         }
 
+        // GET: /Descontar/ObtenerFotoEmpleado/2887
+        [HttpGet]
+        public async Task<IActionResult> ObtenerFotoEmpleado(int id) // Cambiado el argumento a 'id' o mapeado en la ruta
+        {
+            // Mantenemos una variable estática o de clase para el token para no loguearnos en cada foto
+            string urlBase = "http://10.195.250.100:7000";
+
+            // Corregido: Apunta exactamente a tu wwwroot físico en minúsculas 'images'
+            string rutaDefault = Path.Combine(_env.WebRootPath, "images", "default.png");
+
+            var extensiones = new List<string> { ".jpg", ".JPG", ".png", ".jpeg" };
+
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(4);
+
+                    // 🔐 PASO 1: Login automático de administración de Filebrowser
+                    if (string.IsNullOrEmpty(_filebrowserToken))
+                    {
+                        var loginData = new { username = "admin", password = "admin" };
+                        var jsonPayload = new StringContent(System.Text.Json.JsonSerializer.Serialize(loginData), System.Text.Encoding.UTF8, "application/json");
+
+                        var loginResponse = await client.PostAsync($"{urlBase}/api/login", jsonPayload);
+                        if (loginResponse.IsSuccessStatusCode)
+                        {
+                            _filebrowserToken = await loginResponse.Content.ReadAsStringAsync();
+                            _filebrowserToken = _filebrowserToken.Trim('"');
+                        }
+                    }
+
+                    // 📸 PASO 2: Descarga en cascada probando formatos legibles (.jpg, .png, etc.)
+                    if (!string.IsNullOrEmpty(_filebrowserToken))
+                    {
+                        client.DefaultRequestHeaders.Add("X-Auth", _filebrowserToken);
+
+                        foreach (var ext in extensiones)
+                        {
+                            string urlArchivo = $"{urlBase}/api/raw/TMFOTOS/{id}{ext}";
+                            var response = await client.GetAsync(urlArchivo);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                var contentBytes = await response.Content.ReadAsByteArrayAsync();
+                                if (contentBytes != null && contentBytes.Length > 0)
+                                {
+                                    string contentType = ext.ToLower() == ".png" ? "image/png" : "image/jpeg";
+                                    return File(contentBytes, contentType);
+                                }
+                            }
+
+                            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                            {
+                                _filebrowserToken = null;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error de descarga TGRMX-Server: {ex.Message}");
+            }
+
+            // 👤 PASO 3: Retorno seguro de la silueta predeterminada offline si falla la red
+            if (System.IO.File.Exists(rutaDefault))
+            {
+                var defaultBytes = await System.IO.File.ReadAllBytesAsync(rutaDefault);
+                return File(defaultBytes, "image/png");
+            }
+
+            return NotFound();
+        }
+
+
         // POST: /Descontar/ProcesarDescuento
         [HttpPost]
         public async Task<IActionResult> ProcesarDescuento([FromBody] TransaccionSalidaViewModel modelo)
@@ -200,6 +280,8 @@ namespace TGRMXInventario.Controllers
 
 
     }
+
+
 
     // ================= VIEWMODELS PARA RECEPCIÓN DE DATOS JSON =================
 
